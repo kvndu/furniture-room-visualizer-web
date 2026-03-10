@@ -1,0 +1,51 @@
+# dependencies
+node_modules
+.pnp
+.pnp.js
+
+# production build
+dist
+build
+
+# vite
+.vite
+
+# environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# editor folders
+.vscode
+.idea
+
+# temporary files
+*.tmp
+*.temp
+.cache
+
+# coverage
+coverage
+
+# testing
+.nyc_output
+
+# optional npm cache
+.npm
+
+# optional eslint cache
+.eslintcache
