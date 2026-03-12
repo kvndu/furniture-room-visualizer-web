@@ -29,7 +29,7 @@ export default function Portfolio() {
                 </p>
 
                 <p style={{ fontSize: "14px" }}>
-                  Furniture: {design.furnitureCount}
+                  Furniture: {design.furniture?.length || design.furnitureCount || 0}
                 </p>
 
                 <div
@@ -45,9 +45,13 @@ export default function Portfolio() {
                   {design.createdAt}
                 </p>
 
-                <div className="flex mt-20">
-                  <Link to={`/edit-design/${design.id}`} className="btn">
-                    Edit
+                <div className="flex mt-20" style={{ flexWrap: "wrap" }}>
+                  <Link to={`/create-design?id=${design.id}`} className="btn">
+                    Edit 2D
+                  </Link>
+
+                  <Link to={`/preview-3d?id=${design.id}`} className="btn btn-secondary">
+                    View 3D
                   </Link>
 
                   <button

@@ -9,12 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@react-three/drei": "^10.0.0",
-    "@react-three/fiber": "^9.0.0",
-    "konva": "^10.2.0",
+    "@react-three/drei": "9.120.4",
+    "@react-three/fiber": "8.17.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-konva": "^18.2.10",
     "react-router-dom": "^6.28.0",
     "three": "^0.169.0"
   },

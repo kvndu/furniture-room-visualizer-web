@@ -5,12 +5,14 @@ import CreateDesign from "../pages/CreateDesign";
 import EditDesign from "../pages/EditDesign";
 import Portfolio from "../pages/Portfolio";
 import NotFound from "../pages/NotFound";
+import Preview3D from "../pages/Preview3D";
 import ProtectedRoute from "./ProtectedRoute";
 
 export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
+
       <Route
         path="/dashboard"
         element={
@@ -19,6 +21,7 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/create-design"
         element={
@@ -27,6 +30,16 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      <Route
+        path="/preview-3d"
+        element={
+          <ProtectedRoute>
+            <Preview3D />
+          </ProtectedRoute>
+        }
+      />
+
       <Route
         path="/edit-design/:id"
         element={
@@ -35,6 +48,7 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/portfolio"
         element={
@@ -43,6 +57,7 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
