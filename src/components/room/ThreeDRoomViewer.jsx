@@ -1,7 +1,68 @@
+import { Suspense, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, useGLTF, Center } from "@react-three/drei";
+import * as THREE from "three";
 
-function RoomScene({ design }) {
+function normalizeFurnitureType(type = "") {
+  return String(type).toLowerCase().replace(/\s+/g, "");
+}
+
+function FittedModel({ modelPath, item, roomWidth, roomLength }) {
+  const gltf = useGLTF(modelPath);
+  const scene = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
+
+  const itemWidth = Number(item.width) || 1;
+  const itemDepth = Number(item.depth) || Number(item.length) || 1;
+  const itemHeight = Number(item.height) || 1;
+
+  const box = new THREE.Box3().setFromObject(scene);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+
+  const scaleFactor = Math.min(
+    itemWidth / size.x,
+    itemHeight / size.y,
+    itemDepth / size.z
+  );
+
+  const x = -roomWidth / 2 + (Number(item.x) || 0) + itemWidth / 2;
+  const z = -roomLength / 2 + (Number(item.y) || 0) + itemDepth / 2;
+
+  return (
+    <group
+      position={[x, 0.25, z]}
+      rotation={[0, ((item.rotation || 0) * Math.PI) / 180, 0]}
+    >
+      <Center bottom>
+        <primitive object={scene} scale={scaleFactor} />
+      </Center>
+    </group>
+  );
+}
+
+function FurnitureFallback({ item, roomWidth, roomLength }) {
+  const itemWidth = Number(item.width) || 1;
+  const itemDepth = Number(item.depth) || Number(item.length) || 1;
+  const itemHeight = Number(item.height) || 1;
+
+  const x = -roomWidth / 2 + (Number(item.x) || 0) + itemWidth / 2;
+  const z = -roomLength / 2 + (Number(item.y) || 0) + itemDepth / 2;
+  const y = itemHeight / 2;
+
+  return (
+    <mesh
+      position={[x, y, z]}
+      rotation={[0, ((item.rotation || 0) * Math.PI) / 180, 0]}
+      castShadow
+      receiveShadow
+    >
+      <boxGeometry args={[itemWidth, itemHeight, itemDepth]} />
+      <meshStandardMaterial color={item.color || "#60a5fa"} />
+    </mesh>
+  );
+}
+
+function RoomScene({ design, furnitureModelMap = {} }) {
   const roomWidth = Number(design.width) || 6;
   const roomLength = Number(design.length) || 5;
   const roomHeight = Number(design.height) || 3;
@@ -19,54 +80,71 @@ function RoomScene({ design }) {
       <gridHelper args={[20, 20, "#b0b0b0", "#d0d0d0"]} position={[0, 0.001, 0]} />
       <axesHelper args={[2]} position={[0, 0.01, 0]} />
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[roomWidth, roomLength]} />
         <meshStandardMaterial color={floorColor} />
       </mesh>
 
-      <mesh position={[0, roomHeight / 2, -roomLength / 2]} castShadow receiveShadow>
+      <mesh position={[0, roomHeight / 2, -roomLength / 2]}>
         <boxGeometry args={[roomWidth, roomHeight, wallThickness]} />
         <meshStandardMaterial color={wallColor} />
       </mesh>
 
-      <mesh position={[0, roomHeight / 2, roomLength / 2]} castShadow receiveShadow>
+      <mesh position={[0, roomHeight / 2, roomLength / 2]}>
         <boxGeometry args={[roomWidth, roomHeight, wallThickness]} />
         <meshStandardMaterial color={wallColor} />
       </mesh>
 
-      <mesh position={[-roomWidth / 2, roomHeight / 2, 0]} castShadow receiveShadow>
+      <mesh position={[-roomWidth / 2, roomHeight / 2, 0]}>
         <boxGeometry args={[wallThickness, roomHeight, roomLength]} />
         <meshStandardMaterial color={wallColor} />
       </mesh>
 
-      <mesh position={[roomWidth / 2, roomHeight / 2, 0]} castShadow receiveShadow>
+      <mesh position={[roomWidth / 2, roomHeight / 2, 0]}>
         <boxGeometry args={[wallThickness, roomHeight, roomLength]} />
         <meshStandardMaterial color={wallColor} />
       </mesh>
 
       {design.furniture?.map((item) => {
-        const x = -roomWidth / 2 + item.x + item.width / 2;
-        const z = -roomLength / 2 + item.y + item.depth / 2;
-        const y = item.height / 2;
+        const normalizedType = normalizeFurnitureType(item.type);
+        const modelPath = furnitureModelMap[normalizedType];
+
+        if (modelPath) {
+          return (
+            <Suspense
+              key={item.id}
+              fallback={
+                <FurnitureFallback
+                  item={item}
+                  roomWidth={roomWidth}
+                  roomLength={roomLength}
+                />
+              }
+            >
+              <FittedModel
+                modelPath={modelPath}
+                item={item}
+                roomWidth={roomWidth}
+                roomLength={roomLength}
+              />
+            </Suspense>
+          );
+        }
 
         return (
-          <mesh
+          <FurnitureFallback
             key={item.id}
-            position={[x, y, z]}
-            rotation={[0, ((item.rotation || 0) * Math.PI) / 180, 0]}
-            castShadow
-            receiveShadow
-          >
-            <boxGeometry args={[item.width, item.height, item.depth]} />
-            <meshStandardMaterial color={item.color || "#60a5fa"} />
-          </mesh>
+            item={item}
+            roomWidth={roomWidth}
+            roomLength={roomLength}
+          />
         );
       })}
     </>
   );
 }
 
-export default function ThreeDRoomViewer({ design }) {
+export default function ThreeDRoomViewer({ design, furnitureModelMap = {} }) {
   return (
     <div
       style={{
@@ -79,7 +157,7 @@ export default function ThreeDRoomViewer({ design }) {
       }}
     >
       <Canvas camera={{ position: [6, 5, 7], fov: 50 }} shadows>
-        <RoomScene design={design} />
+        <RoomScene design={design} furnitureModelMap={furnitureModelMap} />
         <OrbitControls enablePan enableZoom enableRotate />
       </Canvas>
     </div>

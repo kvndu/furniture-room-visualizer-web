@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useDesign } from "../hooks/useDesign";
-import { defaultFurnitureByRoom, roomLibrary } from "../data/furnitureData";
+import { roomLibrary } from "../data/furnitureData";
 import TwoDEditor from "../components/room/TwoDEditor";
 
 const defaultForm = {
@@ -14,6 +14,18 @@ const defaultForm = {
   wallColor: "#dbeafe",
   floorColor: "#d6c3a5"
 };
+
+const getTestChair = () => ({
+  id: Date.now() + Math.random(),
+  type: "Chair",
+  width: 1,
+  depth: 1,
+  height: 1,
+  color: "#c084fc",
+  rotation: 0,
+  x: 2,
+  y: 2
+});
 
 export default function CreateDesign() {
   const navigate = useNavigate();
@@ -30,7 +42,7 @@ export default function CreateDesign() {
   } = useDesign();
 
   const [form, setForm] = useState(defaultForm);
-  const [furniture, setFurniture] = useState(defaultFurnitureByRoom.Kitchen || []);
+  const [furniture, setFurniture] = useState([getTestChair()]);
   const [selectedLibraryItem, setSelectedLibraryItem] = useState(null);
 
   const currentRoom = roomLibrary[form.roomType];
@@ -57,7 +69,7 @@ export default function CreateDesign() {
       floorColor: existing.floorColor || "#d6c3a5"
     });
 
-    setFurniture(existing.furniture || []);
+    setFurniture(existing.furniture?.length ? existing.furniture : [getTestChair()]);
     setSelectedCategory(
       existing.selectedCategory ||
         Object.keys(roomLibrary[existing.roomType || "Kitchen"].categories)[0]
@@ -115,7 +127,7 @@ export default function CreateDesign() {
     }));
     setSelectedCategory(firstCategory);
     setSelectedLibraryItem(null);
-    setFurniture([]);
+    setFurniture([getTestChair()]);
   };
 
   const handleSave = () => {
