@@ -58,7 +58,10 @@ export default function CreateDesign() {
     });
 
     setFurniture(existing.furniture || []);
-    setSelectedCategory(existing.selectedCategory || Object.keys(roomLibrary[existing.roomType || "Kitchen"].categories)[0]);
+    setSelectedCategory(
+      existing.selectedCategory ||
+        Object.keys(roomLibrary[existing.roomType || "Kitchen"].categories)[0]
+    );
   }, [editId, designs, getDesignById]);
 
   useEffect(() => {
@@ -95,7 +98,10 @@ export default function CreateDesign() {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]: name === "width" || name === "length" || name === "height" ? Number(value) : value
+      [name]:
+        name === "width" || name === "length" || name === "height"
+          ? Number(value)
+          : value
     }));
   };
 
@@ -109,7 +115,7 @@ export default function CreateDesign() {
     }));
     setSelectedCategory(firstCategory);
     setSelectedLibraryItem(null);
-    setFurniture(defaultFurnitureByRoom[roomType] || []);
+    setFurniture([]);
   };
 
   const handleSave = () => {
@@ -156,6 +162,12 @@ export default function CreateDesign() {
     } else {
       navigate("/preview-3d");
     }
+  };
+
+  const handleLibraryDragStart = (e, item) => {
+    e.dataTransfer.setData("application/json", JSON.stringify(item));
+    e.dataTransfer.effectAllowed = "copy";
+    setSelectedLibraryItem(item);
   };
 
   return (
@@ -255,15 +267,28 @@ export default function CreateDesign() {
               }}
             >
               {categoryItems.map((item) => (
-                <button
+                <div
                   key={item.type}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
+                  draggable
+                  onDragStart={(e) => handleLibraryDragStart(e, item)}
                   onClick={() => setSelectedLibraryItem(item)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      setSelectedLibraryItem(item);
+                    }
+                  }}
                   style={{
-                    border: selectedLibraryItem?.type === item.type ? "2px solid #2563eb" : "1px solid #e5e7eb",
+                    cursor: "grab",
+                    border:
+                      selectedLibraryItem?.type === item.type
+                        ? "2px solid #2563eb"
+                        : "1px solid #e5e7eb",
                     borderRadius: "14px",
                     padding: "12px",
                     background: "#fff",
+                    userSelect: "none",
                     boxShadow:
                       selectedLibraryItem?.type === item.type
                         ? "0 0 0 3px rgba(37,99,235,0.12)"
@@ -279,8 +304,13 @@ export default function CreateDesign() {
                       marginBottom: "10px"
                     }}
                   />
-                  <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "14px" }}>{item.type}</div>
-                </button>
+                  <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "14px" }}>
+                    {item.type}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#64748b", marginTop: "6px" }}>
+                    Drag into editor
+                  </div>
+                </div>
               ))}
             </div>
 
@@ -393,7 +423,7 @@ export default function CreateDesign() {
             <div style={{ marginBottom: "14px" }}>
               <h2 className="title" style={{ marginBottom: "6px" }}>2D Editor</h2>
               <p className="subtitle" style={{ marginBottom: 0 }}>
-                Create the layout in 2D, then open the separate 3D preview page.
+                Drag furniture into the room, then drag items again to reposition them.
               </p>
             </div>
 
