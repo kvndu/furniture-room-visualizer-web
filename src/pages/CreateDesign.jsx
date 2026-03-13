@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useDesign } from "../hooks/useDesign";
 import { defaultFurnitureByRoom, roomLibrary } from "../data/furnitureData";
+import { getFurnitureItems } from "../services/furnitureService";
 import TwoDEditor from "../components/room/TwoDEditor";
 
 const defaultForm = {
@@ -32,6 +33,8 @@ export default function CreateDesign() {
   const [form, setForm] = useState(defaultForm);
   const [furniture, setFurniture] = useState(defaultFurnitureByRoom.Kitchen || []);
   const [selectedLibraryItem, setSelectedLibraryItem] = useState(null);
+  const [categoryItems, setCategoryItems] = useState([]);
+  const [loadingItems, setLoadingItems] = useState(false);
 
   const currentRoom = roomLibrary[form.roomType];
   const categoryNames = useMemo(
@@ -85,9 +88,36 @@ export default function CreateDesign() {
     setDraftDesign(draft);
   }, [form, furniture, selectedCategory, setDraftDesign]);
 
-  const categoryItems = useMemo(() => {
-    return currentRoom.categories[selectedCategory] || [];
-  }, [currentRoom, selectedCategory]);
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadItems() {
+      try {
+        setLoadingItems(true);
+        const items = await getFurnitureItems(form.roomType, selectedCategory);
+
+        if (!ignore) {
+          setCategoryItems(items);
+        }
+      } catch (error) {
+        console.error("Failed to load furniture items:", error);
+
+        if (!ignore) {
+          setCategoryItems([]);
+        }
+      } finally {
+        if (!ignore) {
+          setLoadingItems(false);
+        }
+      }
+    }
+
+    loadItems();
+
+    return () => {
+      ignore = true;
+    };
+  }, [form.roomType, selectedCategory]);
 
   const handleLogout = () => {
     logout();
@@ -116,6 +146,7 @@ export default function CreateDesign() {
     setSelectedCategory(firstCategory);
     setSelectedLibraryItem(null);
     setFurniture([]);
+    setCategoryItems([]);
   };
 
   const handleSave = () => {
@@ -219,9 +250,6 @@ export default function CreateDesign() {
                 <option value="Kitchen">Kitchen</option>
                 <option value="Office">Office</option>
                 <option value="Bathroom">Bathroom</option>
-                <option value="DiningRoom">Dining Room</option>
-                <option value="KidsRoom">Kids Room</option>
-                <option value="Balcony">Balcony</option>
               </select>
             </div>
 
@@ -258,6 +286,12 @@ export default function CreateDesign() {
               </p>
             </div>
 
+            {loadingItems && (
+              <div style={{ fontSize: "14px", color: "#64748b", marginBottom: "10px" }}>
+                Loading furniture items...
+              </div>
+            )}
+
             <div
               style={{
                 display: "grid",
@@ -268,7 +302,7 @@ export default function CreateDesign() {
             >
               {categoryItems.map((item) => (
                 <div
-                  key={item.type}
+                  key={item.id || item.type}
                   role="button"
                   tabIndex={0}
                   draggable
@@ -298,15 +332,43 @@ export default function CreateDesign() {
                   <div
                     style={{
                       width: "100%",
-                      height: "72px",
+                      height: "120px",
                       borderRadius: "10px",
-                      background: item.color,
-                      marginBottom: "10px"
+                      marginBottom: "10px",
+                      background: "#f8fafc",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden",
+                      border: "1px solid #e5e7eb"
                     }}
-                  />
+                  >
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.type}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "contain",
+                          padding: "6px"
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          background: item.color || "#cbd5e1"
+                        }}
+                      />
+                    )}
+                  </div>
+
                   <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "14px" }}>
                     {item.type}
                   </div>
+
                   <div style={{ fontSize: "12px", color: "#64748b", marginTop: "6px" }}>
                     Drag into editor
                   </div>
@@ -324,7 +386,9 @@ export default function CreateDesign() {
                 gap: "12px"
               }}
             >
-              <h3 className="section-title" style={{ marginBottom: 0 }}>Room Settings</h3>
+              <h3 className="section-title" style={{ marginBottom: 0 }}>
+                Room Settings
+              </h3>
 
               <input
                 className="input"
