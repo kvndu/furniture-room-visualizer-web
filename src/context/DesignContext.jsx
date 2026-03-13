@@ -1,30 +1,38 @@
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useMemo, useState } from "react";
+import { mockDesigns } from "../data/mockDesigns";
+import { loadDesigns, saveDesigns } from "../services/designService";
 
 export const DesignContext = createContext();
 
-const DESIGN_KEY = "frv_designs_list";
 const DRAFT_KEY = "frv_current_draft";
 
 export function DesignProvider({ children }) {
   const [designs, setDesigns] = useState([]);
   const [draftDesign, setDraftDesignState] = useState(null);
+  const [designsReady, setDesignsReady] = useState(false);
 
   useEffect(() => {
-    const savedDesigns = localStorage.getItem(DESIGN_KEY);
+    const savedDesigns = loadDesigns();
     const savedDraft = localStorage.getItem(DRAFT_KEY);
 
-    if (savedDesigns) {
-      setDesigns(JSON.parse(savedDesigns));
-    }
+    setDesigns(savedDesigns.length > 0 ? savedDesigns : mockDesigns);
 
     if (savedDraft) {
-      setDraftDesignState(JSON.parse(savedDraft));
+      try {
+        setDraftDesignState(JSON.parse(savedDraft));
+      } catch (error) {
+        console.error("Failed to restore draft design:", error);
+        localStorage.removeItem(DRAFT_KEY);
+      }
     }
+
+    setDesignsReady(true);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(DESIGN_KEY, JSON.stringify(designs));
-  }, [designs]);
+    if (!designsReady) return;
+    saveDesigns(designs);
+  }, [designs, designsReady]);
 
   useEffect(() => {
     if (draftDesign) {
@@ -47,7 +55,9 @@ export function DesignProvider({ children }) {
   const updateDesign = (id, updatedData) => {
     setDesigns((prev) =>
       prev.map((design) =>
-        String(design.id) === String(id) ? { ...design, ...updatedData } : design
+        String(design.id) === String(id)
+          ? { ...design, ...updatedData, updatedAt: new Date().toLocaleString() }
+          : design
       )
     );
   };
@@ -56,32 +66,22 @@ export function DesignProvider({ children }) {
     setDesigns((prev) => prev.filter((design) => String(design.id) !== String(id)));
   };
 
-  const getDesignById = (id) => {
-    return designs.find((design) => String(design.id) === String(id)) || null;
-  };
+  const getDesignById = (id) => designs.find((design) => String(design.id) === String(id)) || null;
 
-  const setDraftDesign = (design) => {
-    setDraftDesignState(design);
-  };
+  const setDraftDesign = (design) => setDraftDesignState(design);
+  const clearDraftDesign = () => setDraftDesignState(null);
 
-  const clearDraftDesign = () => {
-    setDraftDesignState(null);
-  };
+  const value = useMemo(() => ({
+    designs,
+    draftDesign,
+    designsReady,
+    addDesign,
+    updateDesign,
+    deleteDesign,
+    getDesignById,
+    setDraftDesign,
+    clearDraftDesign
+  }), [designs, draftDesign, designsReady]);
 
-  return (
-    <DesignContext.Provider
-      value={{
-        designs,
-        draftDesign,
-        addDesign,
-        updateDesign,
-        deleteDesign,
-        getDesignById,
-        setDraftDesign,
-        clearDraftDesign
-      }}
-    >
-      {children}
-    </DesignContext.Provider>
-  );
+  return <DesignContext.Provider value={value}>{children}</DesignContext.Provider>;
 }
