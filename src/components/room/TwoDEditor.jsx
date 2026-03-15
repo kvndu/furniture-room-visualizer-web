@@ -9,7 +9,8 @@ export default function TwoDEditor({
   furniture,
   setFurniture,
   selectedLibraryItem,
-  onPreview3D
+  onPreview3D,
+  onSelectionChange
 }) {
   const boardRef = useRef(null);
   const dragRef = useRef(null);
@@ -31,6 +32,16 @@ export default function TwoDEditor({
     () => furniture.find((item) => item.id === selectedId) || null,
     [furniture, selectedId]
   );
+
+  useEffect(() => {
+    onSelectionChange?.(selectedItem);
+  }, [selectedItem, onSelectionChange]);
+
+  useEffect(() => {
+    if (selectedId && !furniture.some((item) => item.id === selectedId)) {
+      setSelectedId(null);
+    }
+  }, [furniture, selectedId]);
 
   const getItemWidth = (item) => Number(item.width) || 1;
   const getItemDepth = (item) => Number(item.depth) || Number(item.length) || 1;
@@ -94,6 +105,20 @@ export default function TwoDEditor({
 
     setFurniture((prev) => [...prev, newItem]);
     setSelectedId(newItem.id);
+  };
+
+  const duplicateSelected = () => {
+    if (!selectedItem) return;
+
+    const duplicate = {
+      ...selectedItem,
+      id: Date.now() + Math.random(),
+      x: clamp(selectedItem.x + 0.3, 0, Math.max(0, roomWidth - getItemWidth(selectedItem))),
+      y: clamp(selectedItem.y + 0.3, 0, Math.max(0, roomLength - getItemDepth(selectedItem)))
+    };
+
+    setFurniture((prev) => [...prev, duplicate]);
+    setSelectedId(duplicate.id);
   };
 
   const deleteSelected = () => {
@@ -227,37 +252,38 @@ export default function TwoDEditor({
     };
   }, [furniture, roomWidth, roomLength, scale]);
 
+  const actionButtonStyle = {
+    border: "1px solid #d6dbe7",
+    borderRadius: "12px",
+    padding: "10px 14px",
+    background: "#fff",
+    color: "#0f172a",
+    fontWeight: 700,
+    fontSize: "14px"
+  };
+
   return (
-    <div>
+    <div style={{ display: "grid", gap: "16px" }}>
       <div
         style={{
           display: "flex",
           gap: "10px",
           flexWrap: "wrap",
-          marginBottom: "14px"
+          alignItems: "center"
         }}
       >
         <button
           type="button"
-          className="btn"
+          style={actionButtonStyle}
           onClick={addSelectedItem}
           disabled={!selectedLibraryItem}
         >
-          Add Selected Item
+          Add Item
         </button>
 
         <button
           type="button"
-          className="btn btn-secondary"
-          onClick={deleteSelected}
-          disabled={!selectedItem}
-        >
-          Delete Selected
-        </button>
-
-        <button
-          type="button"
-          className="btn btn-secondary"
+          style={actionButtonStyle}
           onClick={() => rotateSelected("left")}
           disabled={!selectedItem}
         >
@@ -266,7 +292,7 @@ export default function TwoDEditor({
 
         <button
           type="button"
-          className="btn btn-secondary"
+          style={actionButtonStyle}
           onClick={() => rotateSelected("right")}
           disabled={!selectedItem}
         >
@@ -275,7 +301,7 @@ export default function TwoDEditor({
 
         <button
           type="button"
-          className="btn btn-secondary"
+          style={actionButtonStyle}
           onClick={() => resizeSelected("increase")}
           disabled={!selectedItem}
         >
@@ -284,26 +310,64 @@ export default function TwoDEditor({
 
         <button
           type="button"
-          className="btn btn-secondary"
+          style={actionButtonStyle}
           onClick={() => resizeSelected("decrease")}
           disabled={!selectedItem}
         >
           Smaller
         </button>
 
-        <input
-          type="color"
-          value={selectedItem?.color || "#000000"}
-          onChange={recolorSelected}
+        <button
+          type="button"
+          style={actionButtonStyle}
+          onClick={duplicateSelected}
           disabled={!selectedItem}
+        >
+          Duplicate
+        </button>
+
+        <button
+          type="button"
           style={{
-            width: "46px",
-            height: "40px",
-            borderRadius: "10px",
-            border: "1px solid #cbd5e1",
+            ...actionButtonStyle,
+            color: "#dc2626",
+            borderColor: "#fecaca",
+            background: "#fff5f5"
+          }}
+          onClick={deleteSelected}
+          disabled={!selectedItem}
+        >
+          Delete
+        </button>
+
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "10px",
+            padding: "8px 12px",
+            border: "1px solid #d6dbe7",
+            borderRadius: "12px",
             background: "#fff"
           }}
-        />
+        >
+          <span style={{ fontSize: "13px", color: "#64748b", fontWeight: 700 }}>
+            Color
+          </span>
+          <input
+            type="color"
+            value={selectedItem?.color || "#000000"}
+            onChange={recolorSelected}
+            disabled={!selectedItem}
+            style={{
+              width: "40px",
+              height: "32px",
+              borderRadius: "8px",
+              border: "1px solid #cbd5e1",
+              background: "#fff"
+            }}
+          />
+        </div>
 
         <button type="button" className="btn" onClick={onPreview3D}>
           Preview in 3D
@@ -313,9 +377,9 @@ export default function TwoDEditor({
       <div
         style={{
           padding: "14px",
-          border: "2px dashed #cbd5e1",
-          borderRadius: "18px",
-          background: "#f8fafc"
+          border: "1px dashed #cbd5e1",
+          borderRadius: "22px",
+          background: "#f8fbff"
         }}
       >
         <div
@@ -326,10 +390,11 @@ export default function TwoDEditor({
             position: "relative",
             width: `${boardPixelWidth}px`,
             height: `${boardPixelHeight}px`,
+            maxWidth: "100%",
             margin: "0 auto",
             background: form.wallColor,
-            border: "3px solid #94a3b8",
-            borderRadius: "10px",
+            border: "3px solid #8ca0b9",
+            borderRadius: "16px",
             overflow: "hidden",
             boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)"
           }}
@@ -357,11 +422,11 @@ export default function TwoDEditor({
                 width: `${getItemWidth(item) * scale}px`,
                 height: `${getItemDepth(item) * scale}px`,
                 background: item.color,
-                borderRadius: "8px",
+                borderRadius: "10px",
                 border:
                   selectedId === item.id
-                    ? "3px solid #ef4444"
-                    : "1px solid #334155",
+                    ? "3px solid #2563eb"
+                    : "1px solid rgba(15,23,42,0.6)",
                 transform: `rotate(${item.rotation || 0}deg)`,
                 transformOrigin: "center center",
                 display: "flex",
@@ -374,7 +439,7 @@ export default function TwoDEditor({
                 userSelect: "none",
                 boxShadow:
                   selectedId === item.id
-                    ? "0 10px 18px rgba(239,68,68,0.18)"
+                    ? "0 12px 24px rgba(37,99,235,0.22)"
                     : "0 8px 14px rgba(15,23,42,0.12)"
               }}
             >
@@ -392,12 +457,13 @@ export default function TwoDEditor({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#64748b",
-                fontWeight: 600,
+                color: "#475569",
+                fontWeight: 700,
+                fontSize: "16px",
                 pointerEvents: "none"
               }}
             >
-              Drag furniture here
+              Start by dragging an item into the room ✨
             </div>
           )}
         </div>
@@ -406,7 +472,9 @@ export default function TwoDEditor({
           style={{
             marginTop: "12px",
             display: "flex",
+            flexWrap: "wrap",
             justifyContent: "space-between",
+            gap: "10px",
             color: "#64748b",
             fontSize: "13px"
           }}
