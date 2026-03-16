@@ -4,20 +4,84 @@ import ThreeDRoomViewer from "../components/room/ThreeDRoomViewer";
 
 const STORAGE_KEY = "draftDesign";
 
+function readDraft() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function InfoCard({ label, value }) {
+  return (
+    <div
+      style={{
+        border: "1px solid #dbe2ea",
+        background: "#ffffff",
+        borderRadius: "16px",
+        padding: "12px 14px",
+        marginBottom: "10px"
+      }}
+    >
+      <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px", fontWeight: 700 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: "16px", color: "#0f172a", fontWeight: 800 }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function SectionTitle({ title }) {
+  return (
+    <div
+      style={{
+        fontSize: "13px",
+        fontWeight: 800,
+        color: "#0f172a",
+        marginBottom: "8px"
+      }}
+    >
+      {title}
+    </div>
+  );
+}
+
+function ModeButton({ active, onClick, label }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        border: `1px solid ${active ? "#60a5fa" : "#cbd5e1"}`,
+        background: active ? "#dbeafe" : "#ffffff",
+        color: "#0f172a",
+        padding: "11px 14px",
+        borderRadius: "14px",
+        fontWeight: 800,
+        cursor: "pointer"
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 export default function Preview3D() {
   const navigate = useNavigate();
   const [design, setDesign] = useState(null);
   const [wallMode, setWallMode] = useState("transparent");
+  const [themeMode, setThemeMode] = useState("light");
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      setDesign(parsed);
-    } catch (error) {
-      console.error("Failed to load preview design:", error);
-    }
+    setDesign(readDraft());
+
+    const onFocus = () => setDesign(readDraft());
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, []);
 
   if (!design) {
@@ -25,10 +89,10 @@ export default function Preview3D() {
       <div
         style={{
           minHeight: "100vh",
-          background: "linear-gradient(180deg, #f8fbff 0%, #f1f5f9 100%)",
           display: "grid",
           placeItems: "center",
-          padding: "24px"
+          padding: "20px",
+          background: "#f1f5f9"
         }}
       >
         <div
@@ -40,232 +104,174 @@ export default function Preview3D() {
             borderRadius: "24px",
             padding: "28px",
             textAlign: "center",
-            boxShadow: "0 12px 30px rgba(15, 23, 42, 0.05)"
+            boxShadow: "0 20px 50px rgba(15,23,42,0.08)"
           }}
         >
-          <h2 style={{ margin: "0 0 10px", color: "#0f172a" }}>No Preview Data</h2>
-          <p style={{ margin: "0 0 18px", color: "#64748b" }}>
-            Create Design page eken item ekak add karala Preview 3D click karanna.
-          </p>
+          <div style={{ fontSize: "28px", fontWeight: 800, color: "#0f172a", marginBottom: "10px" }}>
+            No Preview Data
+          </div>
+          <div style={{ color: "#64748b", fontSize: "15px", marginBottom: "18px" }}>
+            Save or preview a room from the 2D editor first.
+          </div>
           <button
             onClick={() => navigate("/create-design")}
-            style={primaryButtonStyle}
+            style={{
+              border: "none",
+              background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+              color: "#ffffff",
+              padding: "12px 16px",
+              borderRadius: "14px",
+              fontWeight: 800,
+              cursor: "pointer"
+            }}
           >
-            Back to Create Design
+            Go to Create Design
           </button>
         </div>
       </div>
     );
   }
 
+  const roomName = design.name || "My Dream Room";
+  const roomWidth = Number(design.width) || 6;
+  const roomLength = Number(design.length) || 5;
+  const roomHeight = Number(design.height) || 3;
+  const furnitureCount = Array.isArray(design.furniture) ? design.furniture.length : 0;
+
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8fbff 0%, #f1f5f9 100%)",
-        padding: "10px"
+        background: "#f1f5f9",
+        padding: "12px",
+        boxSizing: "border-box"
       }}
     >
       <div
         style={{
           width: "100%",
           display: "grid",
-          gridTemplateColumns: "290px 1fr",
-          gap: "10px"
+          gridTemplateColumns: "260px 1fr",
+          gap: "12px",
+          alignItems: "start"
         }}
       >
         <aside
           style={{
-            background: "rgba(255,255,255,0.92)",
+            background: "rgba(255,255,255,0.94)",
             border: "1px solid #dbe2ea",
             borderRadius: "24px",
-            padding: "18px",
-            minHeight: "calc(100vh - 20px)",
-            boxShadow: "0 10px 30px rgba(15, 23, 42, 0.05)"
+            padding: "14px",
+            minHeight: "calc(100vh - 24px)",
+            boxShadow: "0 12px 30px rgba(15,23,42,0.06)",
+            backdropFilter: "blur(10px)"
           }}
         >
           <div
             style={{
-              background: "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)",
+              borderRadius: "22px",
+              padding: "16px",
               color: "#ffffff",
-              borderRadius: "20px",
-              padding: "16px 18px",
-              marginBottom: "16px"
+              background: "linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)",
+              marginBottom: "14px"
             }}
           >
-            <div style={{ fontSize: "12px", opacity: 0.85, marginBottom: "6px" }}>
+            <div style={{ fontSize: "12px", opacity: 0.84, marginBottom: "6px" }}>
               3D Preview Workspace
             </div>
-            <div style={{ fontSize: "24px", fontWeight: 800 }}>
-              {design.name || "My Room"}
-            </div>
-            <div style={{ fontSize: "13px", opacity: 0.9, marginTop: "6px" }}>
+            <div style={{ fontSize: "20px", fontWeight: 800 }}>{roomName}</div>
+            <div style={{ fontSize: "14px", marginTop: "6px", opacity: 0.9 }}>
               Explore your room in 3D
             </div>
           </div>
 
-          <div style={{ display: "grid", gap: "10px" }}>
-            <InfoRow label="Room" value={design.name || "My Room"} />
-            <InfoRow
-              label="Size"
-              value={`${design.width || 6}m × ${design.length || 5}m × ${design.height || 3}m`}
-            />
-            <InfoRow
-              label="Furniture"
-              value={String(design.furniture?.length || 0)}
-            />
+          <InfoCard label="Room" value={roomName} />
+          <InfoCard label="Size" value={`${roomWidth}m × ${roomLength}m × ${roomHeight}m`} />
+          <InfoCard label="Furniture" value={`${furnitureCount}`} />
+
+          <SectionTitle title="Wall Style" />
+          <div style={{ display: "grid", gap: "8px", marginBottom: "14px" }}>
+            <ModeButton active={wallMode === "transparent"} onClick={() => setWallMode("transparent")} label="Transparent" />
+            <ModeButton active={wallMode === "solid"} onClick={() => setWallMode("solid")} label="Solid" />
+            <ModeButton active={wallMode === "hidden"} onClick={() => setWallMode("hidden")} label="Hidden Walls" />
+          </div>
+
+          <SectionTitle title="Canvas Theme" />
+          <div style={{ display: "grid", gap: "8px", marginBottom: "14px" }}>
+            <ModeButton active={themeMode === "light"} onClick={() => setThemeMode("light")} label="Light Canvas" />
+            <ModeButton active={themeMode === "dark"} onClick={() => setThemeMode("dark")} label="Dark Canvas" />
           </div>
 
           <div
             style={{
-              marginTop: "18px",
-              padding: "14px",
               border: "1px solid #dbe2ea",
-              borderRadius: "16px",
-              background: "#f8fafc"
+              background: "#f8fafc",
+              borderRadius: "18px",
+              padding: "12px",
+              marginBottom: "16px"
             }}
           >
-            <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: "10px" }}>
-              Wall Style
-            </div>
-
-            <div style={{ display: "grid", gap: "10px" }}>
-              <button
-                onClick={() => setWallMode("transparent")}
-                style={wallMode === "transparent" ? activeWallButtonStyle : wallButtonStyle}
-              >
-                Transparent
-              </button>
-
-              <button
-                onClick={() => setWallMode("solid")}
-                style={wallMode === "solid" ? activeWallButtonStyle : wallButtonStyle}
-              >
-                Solid
-              </button>
-
-              <button
-                onClick={() => setWallMode("hidden")}
-                style={wallMode === "hidden" ? activeWallButtonStyle : wallButtonStyle}
-              >
-                Hidden Walls
-              </button>
-            </div>
-          </div>
-
-          <div
-            style={{
-              marginTop: "18px",
-              padding: "14px",
-              border: "1px solid #dbe2ea",
-              borderRadius: "16px",
-              background: "#f8fafc"
-            }}
-          >
-            <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: "8px" }}>
+            <div style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a", marginBottom: "8px" }}>
               Tips
             </div>
-            <div style={{ fontSize: "13px", color: "#64748b", lineHeight: 1.6 }}>
-              Drag to rotate the camera. Scroll to zoom. Use wall modes to inspect the room better.
+            <div style={{ color: "#475569", fontSize: "14px", lineHeight: 1.55 }}>
+              Light/Dark switch affects only the 3D canvas box. The rest of the page stays normal.
             </div>
           </div>
 
-          <div style={{ display: "grid", gap: "10px", marginTop: "18px" }}>
+          <div style={{ display: "grid", gap: "10px" }}>
             <button
               onClick={() => navigate("/create-design")}
-              style={secondaryButtonStyle}
+              style={{
+                border: "1px solid #cbd5e1",
+                background: "#ffffff",
+                color: "#0f172a",
+                padding: "12px 16px",
+                borderRadius: "14px",
+                fontWeight: 800,
+                cursor: "pointer"
+              }}
             >
               Back to Editor
             </button>
 
             <button
-              onClick={() => localStorage.removeItem(STORAGE_KEY)}
-              style={dangerButtonStyle}
+              onClick={() => {
+                localStorage.removeItem(STORAGE_KEY);
+                setDesign(null);
+              }}
+              style={{
+                border: "1px solid #fecaca",
+                background: "#fef2f2",
+                color: "#b91c1c",
+                padding: "12px 16px",
+                borderRadius: "14px",
+                fontWeight: 800,
+                cursor: "pointer"
+              }}
             >
               Clear Preview Data
             </button>
           </div>
         </aside>
 
-        <section
+        <main
           style={{
-            background: "rgba(255,255,255,0.92)",
+            background: "rgba(255,255,255,0.94)",
             border: "1px solid #dbe2ea",
             borderRadius: "24px",
             padding: "10px",
-            minHeight: "calc(100vh - 20px)",
-            boxShadow: "0 10px 30px rgba(15, 23, 42, 0.05)"
+            minHeight: "calc(100vh - 24px)",
+            boxShadow: "0 12px 30px rgba(15,23,42,0.06)"
           }}
         >
-          <ThreeDRoomViewer design={design} wallMode={wallMode} />
-        </section>
+          <ThreeDRoomViewer
+            design={design}
+            wallMode={wallMode}
+            themeMode={themeMode}
+          />
+        </main>
       </div>
     </div>
   );
 }
-
-function InfoRow({ label, value }) {
-  return (
-    <div
-      style={{
-        border: "1px solid #e2e8f0",
-        borderRadius: "14px",
-        padding: "13px 14px",
-        display: "flex",
-        justifyContent: "space-between",
-        gap: "10px",
-        background: "#ffffff"
-      }}
-    >
-      <span style={{ color: "#64748b", fontWeight: 700 }}>{label}</span>
-      <span style={{ color: "#0f172a", fontWeight: 800 }}>{value}</span>
-    </div>
-  );
-}
-
-const primaryButtonStyle = {
-  border: "none",
-  background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-  color: "#ffffff",
-  padding: "12px 16px",
-  borderRadius: "14px",
-  fontWeight: 800,
-  cursor: "pointer"
-};
-
-const secondaryButtonStyle = {
-  border: "1px solid #cbd5e1",
-  background: "#ffffff",
-  color: "#0f172a",
-  padding: "12px 16px",
-  borderRadius: "14px",
-  fontWeight: 800,
-  cursor: "pointer"
-};
-
-const dangerButtonStyle = {
-  border: "1px solid #fecaca",
-  background: "#fef2f2",
-  color: "#b91c1c",
-  padding: "12px 16px",
-  borderRadius: "14px",
-  fontWeight: 800,
-  cursor: "pointer"
-};
-
-const wallButtonStyle = {
-  border: "1px solid #cbd5e1",
-  background: "#ffffff",
-  color: "#0f172a",
-  padding: "11px 14px",
-  borderRadius: "12px",
-  fontWeight: 700,
-  cursor: "pointer"
-};
-
-const activeWallButtonStyle = {
-  ...wallButtonStyle,
-  background: "#dbeafe",
-  border: "1px solid #93c5fd",
-  color: "#1d4ed8"
-};

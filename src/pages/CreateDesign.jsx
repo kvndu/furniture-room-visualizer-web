@@ -216,6 +216,8 @@ export default function CreateDesign() {
 
   const [draggingId, setDraggingId] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [resizingId, setResizingId] = useState(null);
+  const [resizeStart, setResizeStart] = useState(null);
   const [isCanvasOver, setIsCanvasOver] = useState(false);
 
   const activeItems = LIBRARY_ITEMS[activeSection] || [];
@@ -346,26 +348,57 @@ export default function CreateDesign() {
   }
 
   function onCanvasMouseMove(event) {
-    if (!draggingId || !canvasRef.current) return;
+    if (!canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
     const pxPerMeterX = rect.width / Number(roomWidth || 1);
     const pxPerMeterY = rect.height / Number(roomLength || 1);
 
-    const rawX = (event.clientX - rect.left - dragOffset.x) / pxPerMeterX;
-    const rawY = (event.clientY - rect.top - dragOffset.y) / pxPerMeterY;
+    if (draggingId) {
+      const rawX = (event.clientX - rect.left - dragOffset.x) / pxPerMeterX;
+      const rawY = (event.clientY - rect.top - dragOffset.y) / pxPerMeterY;
 
-    const target = placedItems.find((item) => item.id === draggingId);
-    if (!target) return;
+      const target = placedItems.find((item) => item.id === draggingId);
+      if (!target) return;
 
-    updatePlacedItem(draggingId, {
-      x: Number(clamp(rawX, 0, Math.max(0, roomWidth - target.width)).toFixed(2)),
-      y: Number(clamp(rawY, 0, Math.max(0, roomLength - target.depth)).toFixed(2))
-    });
+      updatePlacedItem(draggingId, {
+        x: Number(clamp(rawX, 0, Math.max(0, roomWidth - target.width)).toFixed(2)),
+        y: Number(clamp(rawY, 0, Math.max(0, roomLength - target.depth)).toFixed(2))
+      });
+
+      return;
+    }
+
+    if (resizingId && resizeStart) {
+      const target = placedItems.find((item) => item.id === resizingId);
+      if (!target) return;
+
+      const dx = (event.clientX - resizeStart.startClientX) / pxPerMeterX;
+      const dy = (event.clientY - resizeStart.startClientY) / pxPerMeterY;
+
+      const nextWidth = clamp(
+        resizeStart.startWidth + dx,
+        0.4,
+        Math.max(0.4, roomWidth - target.x)
+      );
+
+      const nextDepth = clamp(
+        resizeStart.startDepth + dy,
+        0.4,
+        Math.max(0.4, roomLength - target.y)
+      );
+
+      updatePlacedItem(resizingId, {
+        width: Number(nextWidth.toFixed(2)),
+        depth: Number(nextDepth.toFixed(2))
+      });
+    }
   }
 
   function onCanvasMouseUp() {
     setDraggingId(null);
+    setResizingId(null);
+    setResizeStart(null);
   }
 
   useEffect(() => {
@@ -827,8 +860,8 @@ export default function CreateDesign() {
                             setSelectedId(item.id);
                             setDraggingId(item.id);
                             setDragOffset({
-                              x: (event.clientX - rect.left) - item.x * pxPerMeterX,
-                              y: (event.clientY - rect.top) - item.y * pxPerMeterY
+                              x: event.clientX - rect.left - item.x * pxPerMeterX,
+                              y: event.clientY - rect.top - item.y * pxPerMeterY
                             });
                           }}
                           style={{
@@ -856,10 +889,39 @@ export default function CreateDesign() {
                             userSelect: "none",
                             textAlign: "center",
                             padding: "4px",
-                            boxSizing: "border-box"
+                            boxSizing: "border-box",
+                            overflow: "visible"
                           }}
                         >
                           {item.type}
+
+                          {selectedId === item.id && (
+                            <div
+                              onMouseDown={(event) => {
+                                event.stopPropagation();
+                                setSelectedId(item.id);
+                                setResizingId(item.id);
+                                setResizeStart({
+                                  startClientX: event.clientX,
+                                  startClientY: event.clientY,
+                                  startWidth: item.width,
+                                  startDepth: item.depth
+                                });
+                              }}
+                              style={{
+                                position: "absolute",
+                                right: "-7px",
+                                bottom: "-7px",
+                                width: "14px",
+                                height: "14px",
+                                borderRadius: "50%",
+                                background: "#2563eb",
+                                border: "2px solid #ffffff",
+                                boxShadow: "0 2px 8px rgba(37,99,235,0.35)",
+                                cursor: "nwse-resize"
+                              }}
+                            />
+                          )}
                         </div>
                       );
                     })}
@@ -978,7 +1040,13 @@ export default function CreateDesign() {
                     value={selectedItem.width}
                     onChange={(e) =>
                       updatePlacedItem(selectedItem.id, {
-                        width: Number(clamp(Number(e.target.value) || 0.4, 0.4, 4).toFixed(2))
+                        width: Number(
+                          clamp(
+                            Number(e.target.value) || 0.4,
+                            0.4,
+                            Math.max(0.4, roomWidth - selectedItem.x)
+                          ).toFixed(2)
+                        )
                       })
                     }
                     style={inputStyle}
@@ -993,7 +1061,13 @@ export default function CreateDesign() {
                     value={selectedItem.depth}
                     onChange={(e) =>
                       updatePlacedItem(selectedItem.id, {
-                        depth: Number(clamp(Number(e.target.value) || 0.4, 0.4, 4).toFixed(2))
+                        depth: Number(
+                          clamp(
+                            Number(e.target.value) || 0.4,
+                            0.4,
+                            Math.max(0.4, roomLength - selectedItem.y)
+                          ).toFixed(2)
+                        )
                       })
                     }
                     style={inputStyle}
