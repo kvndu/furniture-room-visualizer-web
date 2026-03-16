@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
+import { Canvas } from "@react-three/fiber";
+import { Bounds, Center, Environment, useGLTF } from "@react-three/drei";
+import { supabase } from "../lib/supabase";
+import { MODEL_PATHS } from "../data/modelMap";
 
 const STORAGE_KEY = "draftDesign";
 
@@ -16,9 +20,9 @@ const LIBRARY_SECTIONS = [
 
 const LIBRARY_ITEMS = {
   Kitchens: [
-    { id: "k-1", type: "L Kitchen", width: 2.2, depth: 1.6, height: 0.9, color: "#facc15", preview: "┘" },
-    { id: "k-2", type: "Straight Kitchen", width: 2.6, depth: 0.7, height: 0.9, color: "#fde68a", preview: "▬" },
-    { id: "k-3", type: "Island Kitchen", width: 2.4, depth: 1.8, height: 0.9, color: "#fbbf24", preview: "⬒" }
+    { id: "k-1", type: "L Kitchen", width: 2.2, depth: 1.6, height: 0.9, color: "#facc15" },
+    { id: "k-2", type: "Straight Kitchen", width: 2.6, depth: 0.7, height: 0.9, color: "#fde68a" },
+    { id: "k-3", type: "Island Kitchen", width: 2.4, depth: 1.8, height: 0.9, color: "#fbbf24" }
   ],
   Cabinets: [
     { id: "c-1", type: "Base Cabinet", width: 1.4, depth: 0.6, height: 0.9, color: "#eab308" },
@@ -56,9 +60,12 @@ const LIBRARY_ITEMS = {
 
 const QUICK_ITEMS = [
   { section: "Beds", type: "Queen Bed" },
+  { section: "Beds", type: "Single Bed" },
   { section: "Wardrobes", type: "Wardrobe" },
   { section: "Tables", type: "Dining Table" },
-  { section: "HomeEquipment", type: "Office Chair" }
+  { section: "Tables", type: "Coffee Table" },
+  { section: "HomeEquipment", type: "Office Chair" },
+  { section: "Details", type: "Plant" }
 ];
 
 function clamp(value, min, max) {
@@ -79,6 +86,113 @@ function normalizeItem(item) {
     x: Number(item.x) || 0.5,
     y: Number(item.y) || 0.5
   };
+}
+
+function withModelUrl(item) {
+  const modelPath = MODEL_PATHS[item.type];
+  if (!modelPath) return item;
+
+  const { data } = supabase.storage
+    .from("furniture-models")
+    .getPublicUrl(modelPath);
+
+  return {
+    ...item,
+    model_path: modelPath,
+    model: data?.publicUrl || ""
+  };
+}
+
+function MiniModel({ url }) {
+  const { scene } = useGLTF(url);
+  const cloned = useMemo(() => scene.clone(), [scene]);
+
+  return (
+    <Center>
+      <primitive object={cloned} />
+    </Center>
+  );
+}
+
+function MiniFallback() {
+  return (
+    <mesh>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color="#94a3b8" />
+    </mesh>
+  );
+}
+
+function MiniModelPreview({ modelUrl }) {
+  if (!modelUrl) {
+    return (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "grid",
+          placeItems: "center",
+          color: "#475569",
+          fontSize: "22px",
+          fontWeight: 700
+        }}
+      >
+        ▦
+      </div>
+    );
+  }
+
+  return (
+    <Canvas camera={{ position: [3.2, 2.4, 3.2], fov: 38 }}>
+      <color attach="background" args={["#f8fafc"]} />
+      <ambientLight intensity={1.6} />
+      <directionalLight position={[4, 5, 4]} intensity={1.8} />
+      <directionalLight position={[-3, 4, -2]} intensity={0.9} />
+      <Suspense fallback={<MiniFallback />}>
+        <Bounds fit clip observe margin={1.35}>
+          <MiniModel url={modelUrl} />
+        </Bounds>
+      </Suspense>
+      <Environment preset="apartment" />
+    </Canvas>
+  );
+}
+
+function PreviewCard({ item, onClick, onDragStart, compact = false }) {
+  const itemWithModel = withModelUrl(item);
+
+  return (
+    <button
+      onClick={onClick}
+      draggable
+      onDragStart={onDragStart}
+      style={{
+        border: "1px solid #dbe2ea",
+        background: "#ffffff",
+        borderRadius: compact ? "16px" : "14px",
+        padding: compact ? "12px" : "10px",
+        textAlign: "left",
+        cursor: "grab"
+      }}
+    >
+      <div
+        style={{
+          height: compact ? "70px" : "96px",
+          borderRadius: "12px",
+          background: "linear-gradient(180deg, #ffffff 0%, #eef2f7 100%)",
+          marginBottom: "8px",
+          overflow: "hidden",
+          border: "1px solid #e2e8f0"
+        }}
+      >
+        <MiniModelPreview modelUrl={itemWithModel.model} />
+      </div>
+
+      <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "13px" }}>
+        {item.type}
+      </div>
+    </button>
+  );
 }
 
 export default function CreateDesign() {
@@ -154,7 +268,8 @@ export default function CreateDesign() {
   }
 
   function handleAddItem(item) {
-    addItemAtPosition(item, 0.6, 0.6);
+    const itemWithModel = withModelUrl(item);
+    addItemAtPosition(itemWithModel, 0.6, 0.6);
   }
 
   function updatePlacedItem(id, updates) {
@@ -209,6 +324,8 @@ export default function CreateDesign() {
       return;
     }
 
+    const itemWithModel = withModelUrl(item);
+
     const rect = canvasRef.current.getBoundingClientRect();
     const pxPerMeterX = rect.width / Number(roomWidth || 1);
     const pxPerMeterY = rect.height / Number(roomLength || 1);
@@ -217,7 +334,7 @@ export default function CreateDesign() {
     const y = (event.clientY - rect.top) / pxPerMeterY - Number(item.depth || 1) / 2;
 
     addItemAtPosition(
-      item,
+      itemWithModel,
       Number(clamp(x, 0, Math.max(0, roomWidth - Number(item.width || 1))).toFixed(2)),
       Number(clamp(y, 0, Math.max(0, roomLength - Number(item.depth || 1))).toFixed(2))
     );
@@ -263,7 +380,6 @@ export default function CreateDesign() {
         background: "linear-gradient(180deg, #f8fbff 0%, #f1f5f9 100%)"
       }}
     >
-      {/* NAVBAR */}
       <header
         style={{
           position: "sticky",
@@ -538,39 +654,23 @@ export default function CreateDesign() {
                 Quick Add
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(7, minmax(140px, 1fr))",
+                  gap: "10px",
+                  overflowX: "auto",
+                  paddingBottom: "4px"
+                }}
+              >
                 {quickAddItems.map((item) => (
-                  <button
+                  <PreviewCard
                     key={item.id}
+                    item={item}
+                    compact
                     onClick={() => handleAddItem(item)}
-                    draggable
                     onDragStart={(e) => handleLibraryDragStart(e, item)}
-                    style={{
-                      border: "1px solid #dbe2ea",
-                      background: "#ffffff",
-                      borderRadius: "16px",
-                      padding: "12px",
-                      textAlign: "left",
-                      cursor: "grab"
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: "62px",
-                        borderRadius: "12px",
-                        background: "#f8fafc",
-                        display: "grid",
-                        placeItems: "center",
-                        fontSize: "22px",
-                        marginBottom: "8px"
-                      }}
-                    >
-                      ▦
-                    </div>
-                    <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "13px" }}>
-                      {item.type}
-                    </div>
-                  </button>
+                  />
                 ))}
               </div>
             </section>
@@ -611,38 +711,12 @@ export default function CreateDesign() {
                   }}
                 >
                   {filteredItems.map((item) => (
-                    <button
+                    <PreviewCard
                       key={item.id}
+                      item={item}
                       onClick={() => handleAddItem(item)}
-                      draggable
                       onDragStart={(e) => handleLibraryDragStart(e, item)}
-                      style={{
-                        border: "1px solid #dbe2ea",
-                        background: "#ffffff",
-                        borderRadius: "14px",
-                        padding: "10px",
-                        textAlign: "left",
-                        cursor: "grab"
-                      }}
-                    >
-                      <div
-                        style={{
-                          height: "82px",
-                          borderRadius: "12px",
-                          background: "#f8fafc",
-                          display: "grid",
-                          placeItems: "center",
-                          marginBottom: "8px",
-                          fontSize: "22px",
-                          color: "#334155"
-                        }}
-                      >
-                        {item.preview || "▦"}
-                      </div>
-                      <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "13px" }}>
-                        {item.type}
-                      </div>
-                    </button>
+                    />
                   ))}
                 </div>
               </div>
@@ -763,9 +837,10 @@ export default function CreateDesign() {
                             borderRadius: "12px",
                             transform: `rotate(${item.rotation || 0}deg)`,
                             transformOrigin: "center center",
-                            boxShadow: selectedId === item.id
-                              ? "0 0 0 4px rgba(37,99,235,0.15)"
-                              : "0 10px 18px rgba(15, 23, 42, 0.14)",
+                            boxShadow:
+                              selectedId === item.id
+                                ? "0 0 0 4px rgba(37,99,235,0.15)"
+                                : "0 10px 18px rgba(15, 23, 42, 0.14)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -834,7 +909,13 @@ export default function CreateDesign() {
                     value={selectedItem.x}
                     onChange={(e) =>
                       updatePlacedItem(selectedItem.id, {
-                        x: Number(clamp(Number(e.target.value) || 0, 0, Math.max(0, roomWidth - selectedItem.width)).toFixed(2))
+                        x: Number(
+                          clamp(
+                            Number(e.target.value) || 0,
+                            0,
+                            Math.max(0, roomWidth - selectedItem.width)
+                          ).toFixed(2)
+                        )
                       })
                     }
                     style={inputStyle}
@@ -849,7 +930,13 @@ export default function CreateDesign() {
                     value={selectedItem.y}
                     onChange={(e) =>
                       updatePlacedItem(selectedItem.id, {
-                        y: Number(clamp(Number(e.target.value) || 0, 0, Math.max(0, roomLength - selectedItem.depth)).toFixed(2))
+                        y: Number(
+                          clamp(
+                            Number(e.target.value) || 0,
+                            0,
+                            Math.max(0, roomLength - selectedItem.depth)
+                          ).toFixed(2)
+                        )
                       })
                     }
                     style={inputStyle}
