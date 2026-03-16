@@ -1,9 +1,11 @@
+import * as THREE from "three";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, NavLink } from "react-router-dom";
 import { Canvas } from "@react-three/fiber";
-import { Bounds, Center, Environment, useGLTF } from "@react-three/drei";
+import { Environment, OrbitControls, useGLTF } from "@react-three/drei";
+import { NavLink, useNavigate } from "react-router-dom";
+import { FLOOR_PRESETS } from "../data/floorPresets";
+import { withModel } from "../data/modelMap";
 import { supabase } from "../lib/supabase";
-import { MODEL_PATHS } from "../data/modelMap";
 
 const STORAGE_KEY = "draftDesign";
 
@@ -20,41 +22,188 @@ const LIBRARY_SECTIONS = [
 
 const LIBRARY_ITEMS = {
   Kitchens: [
-    { id: "k-1", type: "L Kitchen", width: 2.2, depth: 1.6, height: 0.9, color: "#facc15" },
-    { id: "k-2", type: "Straight Kitchen", width: 2.6, depth: 0.7, height: 0.9, color: "#fde68a" },
-    { id: "k-3", type: "Island Kitchen", width: 2.4, depth: 1.8, height: 0.9, color: "#fbbf24" }
+    withModel("L Kitchen", {
+      id: "k-1",
+      type: "L Kitchen",
+      width: 2.2,
+      depth: 1.6,
+      height: 0.9,
+      color: "#facc15"
+    }),
+    withModel("Straight Kitchen", {
+      id: "k-2",
+      type: "Straight Kitchen",
+      width: 2.6,
+      depth: 0.7,
+      height: 0.9,
+      color: "#fde68a"
+    }),
+    withModel("Island Kitchen", {
+      id: "k-3",
+      type: "Island Kitchen",
+      width: 2.4,
+      depth: 1.8,
+      height: 0.9,
+      color: "#fbbf24"
+    })
   ],
   Cabinets: [
-    { id: "c-1", type: "Base Cabinet", width: 1.4, depth: 0.6, height: 0.9, color: "#eab308" },
-    { id: "c-2", type: "Wall Cabinet", width: 1.2, depth: 0.4, height: 0.8, color: "#f59e0b" },
-    { id: "c-3", type: "TV Unit", width: 1.8, depth: 0.45, height: 0.55, color: "#94a3b8" }
+    withModel("Base Cabinet", {
+      id: "c-1",
+      type: "Base Cabinet",
+      width: 1.4,
+      depth: 0.6,
+      height: 0.9,
+      color: "#eab308"
+    }),
+    withModel("Wall Cabinet", {
+      id: "c-2",
+      type: "Wall Cabinet",
+      width: 1.2,
+      depth: 0.4,
+      height: 0.8,
+      color: "#f59e0b"
+    }),
+    withModel("TV Unit", {
+      id: "c-3",
+      type: "TV Unit",
+      width: 1.8,
+      depth: 0.45,
+      height: 0.55,
+      color: "#94a3b8"
+    })
   ],
   Tables: [
-    { id: "t-1", type: "Dining Table", width: 1.5, depth: 0.9, height: 0.75, color: "#c084fc" },
-    { id: "t-2", type: "Coffee Table", width: 1.0, depth: 0.6, height: 0.45, color: "#a78bfa" },
-    { id: "t-3", type: "Work Desk", width: 1.4, depth: 0.7, height: 0.75, color: "#818cf8" }
+    withModel("Dining Table", {
+      id: "t-1",
+      type: "Dining Table",
+      width: 1.5,
+      depth: 0.9,
+      height: 0.75,
+      color: "#c084fc"
+    }),
+    withModel("Coffee Table", {
+      id: "t-2",
+      type: "Coffee Table",
+      width: 1.0,
+      depth: 0.6,
+      height: 0.45,
+      color: "#a78bfa"
+    }),
+    withModel("Work Desk", {
+      id: "t-3",
+      type: "Work Desk",
+      width: 1.4,
+      depth: 0.7,
+      height: 0.75,
+      color: "#818cf8"
+    })
   ],
   Beds: [
-    { id: "b-1", type: "Queen Bed", width: 1.8, depth: 2.0, height: 0.65, color: "#60a5fa" },
-    { id: "b-2", type: "Single Bed", width: 1.0, depth: 2.0, height: 0.6, color: "#38bdf8" }
+    withModel("Queen Bed", {
+      id: "b-1",
+      type: "Queen Bed",
+      width: 1.8,
+      depth: 2.0,
+      height: 0.65,
+      color: "#60a5fa"
+    }),
+    withModel("Single Bed", {
+      id: "b-2",
+      type: "Single Bed",
+      width: 1.0,
+      depth: 2.0,
+      height: 0.6,
+      color: "#38bdf8"
+    })
   ],
   Wardrobes: [
-    { id: "w-1", type: "Wardrobe", width: 1.5, depth: 0.6, height: 2.1, color: "#64748b" },
-    { id: "w-2", type: "Sliding Wardrobe", width: 1.9, depth: 0.65, height: 2.2, color: "#475569" }
+    withModel("Wardrobe", {
+      id: "w-1",
+      type: "Wardrobe",
+      width: 1.5,
+      depth: 0.6,
+      height: 2.1,
+      color: "#64748b"
+    }),
+    withModel("Sliding Wardrobe", {
+      id: "w-2",
+      type: "Sliding Wardrobe",
+      width: 1.9,
+      depth: 0.65,
+      height: 2.2,
+      color: "#475569"
+    })
   ],
   HomeEquipment: [
-    { id: "h-1", type: "Office Chair", width: 0.7, depth: 0.7, height: 1.1, color: "#10b981" },
-    { id: "h-2", type: "Bookshelf", width: 1.0, depth: 0.35, height: 1.8, color: "#34d399" },
-    { id: "h-3", type: "Side Cabinet", width: 1.0, depth: 0.45, height: 0.8, color: "#6ee7b7" }
+    withModel("Office Chair", {
+      id: "h-1",
+      type: "Office Chair",
+      width: 0.7,
+      depth: 0.7,
+      height: 1.1,
+      color: "#10b981"
+    }),
+    withModel("Bookshelf", {
+      id: "h-2",
+      type: "Bookshelf",
+      width: 1.0,
+      depth: 0.35,
+      height: 1.8,
+      color: "#34d399"
+    }),
+    withModel("Side Cabinet", {
+      id: "h-3",
+      type: "Side Cabinet",
+      width: 1.0,
+      depth: 0.45,
+      height: 0.8,
+      color: "#6ee7b7"
+    })
   ],
   Details: [
-    { id: "d-1", type: "Lamp", width: 0.4, depth: 0.4, height: 1.4, color: "#fde047" },
-    { id: "d-2", type: "Mirror", width: 0.8, depth: 0.1, height: 1.1, color: "#cbd5e1" },
-    { id: "d-3", type: "Plant", width: 0.5, depth: 0.5, height: 0.9, color: "#86efac" }
+    withModel("Lamp", {
+      id: "d-1",
+      type: "Lamp",
+      width: 0.4,
+      depth: 0.4,
+      height: 1.4,
+      color: "#fde047"
+    }),
+    withModel("Mirror", {
+      id: "d-2",
+      type: "Mirror",
+      width: 0.8,
+      depth: 0.1,
+      height: 1.1,
+      color: "#cbd5e1"
+    }),
+    withModel("Plant", {
+      id: "d-3",
+      type: "Plant",
+      width: 0.5,
+      depth: 0.5,
+      height: 0.9,
+      color: "#86efac"
+    })
   ],
   Other: [
-    { id: "o-1", type: "Bench", width: 1.1, depth: 0.45, height: 0.5, color: "#8b5cf6" },
-    { id: "o-2", type: "Storage Box", width: 0.8, depth: 0.8, height: 0.8, color: "#94a3b8" }
+    withModel("Bench", {
+      id: "o-1",
+      type: "Bench",
+      width: 1.1,
+      depth: 0.45,
+      height: 0.5,
+      color: "#8b5cf6"
+    }),
+    withModel("Storage Box", {
+      id: "o-2",
+      type: "Storage Box",
+      width: 0.8,
+      depth: 0.8,
+      height: 0.8,
+      color: "#94a3b8"
+    })
   ]
 };
 
@@ -76,6 +225,15 @@ function uid(prefix = "item") {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function safeParse(json, fallback) {
+  try {
+    const v = JSON.parse(json);
+    return v ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function normalizeItem(item) {
   return {
     ...item,
@@ -88,116 +246,116 @@ function normalizeItem(item) {
   };
 }
 
-function withModelUrl(item) {
-  const modelPath = MODEL_PATHS[item.type];
-  if (!modelPath) return item;
-
-  const { data } = supabase.storage
-    .from("furniture-models")
-    .getPublicUrl(modelPath);
-
-  return {
-    ...item,
-    model_path: modelPath,
-    model: data?.publicUrl || ""
-  };
+function getModelUrl(path) {
+  if (!path) return null;
+  const { data } = supabase.storage.from("furniture-models").getPublicUrl(path);
+  return data?.publicUrl || null;
 }
 
-function MiniModel({ url }) {
-  const { scene } = useGLTF(url);
-  const cloned = useMemo(() => scene.clone(), [scene]);
-
+function MiniPreviewFallback() {
   return (
-    <Center>
-      <primitive object={cloned} />
-    </Center>
-  );
-}
-
-function MiniFallback() {
-  return (
-    <mesh>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color="#94a3b8" />
+    <mesh rotation={[0.18, 0.65, 0]}>
+      <boxGeometry args={[1.1, 1.1, 1.1]} />
+      <meshStandardMaterial color="#dbe2ea" roughness={0.85} />
     </mesh>
   );
 }
 
-function MiniModelPreview({ modelUrl }) {
-  if (!modelUrl) {
-    return (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "grid",
-          placeItems: "center",
-          color: "#475569",
-          fontSize: "22px",
-          fontWeight: 700
-        }}
-      >
-        ▦
-      </div>
-    );
-  }
+function MiniPreviewModel({ modelPath }) {
+  const modelUrl = useMemo(() => getModelUrl(modelPath), [modelPath]);
+  const { scene } = useGLTF(modelUrl || "/dummy.glb", true);
 
+  const prepared = useMemo(() => {
+    if (!scene || !modelUrl) return null;
+
+    const cloned = scene.clone(true);
+    const box = new THREE.Box3().setFromObject(cloned);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+
+    box.getSize(size);
+    box.getCenter(center);
+
+    cloned.position.sub(center);
+
+    const maxAxis = Math.max(size.x || 1, size.y || 1, size.z || 1);
+    const scale = 1.5 / maxAxis;
+    cloned.scale.setScalar(scale);
+
+    const finalBox = new THREE.Box3().setFromObject(cloned);
+    const finalCenter = new THREE.Vector3();
+    finalBox.getCenter(finalCenter);
+
+    cloned.position.x -= finalCenter.x;
+    cloned.position.z -= finalCenter.z;
+    cloned.position.y -= finalBox.min.y;
+
+    cloned.traverse((child) => {
+      if (!child.isMesh) return;
+      child.castShadow = true;
+      child.receiveShadow = true;
+      if (child.material) {
+        child.material = child.material.clone();
+      }
+    });
+
+    return cloned;
+  }, [scene, modelUrl]);
+
+  if (!prepared) return <MiniPreviewFallback />;
+  return <primitive object={prepared} />;
+}
+
+function MiniPreviewScene({ item }) {
   return (
-    <Canvas camera={{ position: [3.2, 2.4, 3.2], fov: 38 }}>
-      <color attach="background" args={["#f8fafc"]} />
-      <ambientLight intensity={1.6} />
-      <directionalLight position={[4, 5, 4]} intensity={1.8} />
-      <directionalLight position={[-3, 4, -2]} intensity={0.9} />
-      <Suspense fallback={<MiniFallback />}>
-        <Bounds fit clip observe margin={1.35}>
-          <MiniModel url={modelUrl} />
-        </Bounds>
+    <>
+      <ambientLight intensity={1.1} />
+      <directionalLight position={[3, 4, 5]} intensity={1.8} />
+      <directionalLight position={[-3, 2, -3]} intensity={0.6} />
+
+      <Suspense fallback={<MiniPreviewFallback />}>
+        {item.model ? <MiniPreviewModel modelPath={item.model} /> : <MiniPreviewFallback />}
       </Suspense>
-      <Environment preset="apartment" />
-    </Canvas>
+
+      <Environment preset="studio" />
+
+      <OrbitControls
+        enablePan={false}
+        enableZoom={false}
+        autoRotate
+        autoRotateSpeed={1.2}
+        minPolarAngle={Math.PI / 2.32}
+        maxPolarAngle={Math.PI / 2.32}
+      />
+    </>
   );
 }
 
-function PreviewCard({ item, onClick, onDragStart, compact = false }) {
-  const itemWithModel = withModelUrl(item);
-
+function MiniModelCard({ item, height = 56 }) {
   return (
-    <button
-      onClick={onClick}
-      draggable
-      onDragStart={onDragStart}
+    <div
       style={{
-        border: "1px solid #dbe2ea",
+        height,
+        borderRadius: "12px",
         background: "#ffffff",
-        borderRadius: compact ? "16px" : "14px",
-        padding: compact ? "12px" : "10px",
-        textAlign: "left",
-        cursor: "grab"
+        overflow: "hidden"
       }}
     >
-      <div
-        style={{
-          height: compact ? "70px" : "96px",
-          borderRadius: "12px",
-          background: "linear-gradient(180deg, #ffffff 0%, #eef2f7 100%)",
-          marginBottom: "8px",
-          overflow: "hidden",
-          border: "1px solid #e2e8f0"
-        }}
+      <Canvas
+        dpr={[1, 1.4]}
+        camera={{ position: [2.2, 1.7, 2.3], fov: 28 }}
+        gl={{ antialias: true, alpha: true }}
       >
-        <MiniModelPreview modelUrl={itemWithModel.model} />
-      </div>
-
-      <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "13px" }}>
-        {item.type}
-      </div>
-    </button>
+        <MiniPreviewScene item={item} />
+      </Canvas>
+    </div>
   );
 }
 
 export default function CreateDesign() {
   const navigate = useNavigate();
   const canvasRef = useRef(null);
+  const hydratedRef = useRef(false);
 
   const [leftTab, setLeftTab] = useState("Library");
   const [activeSection, setActiveSection] = useState("Kitchens");
@@ -210,14 +368,13 @@ export default function CreateDesign() {
 
   const [wallColor, setWallColor] = useState("#dbeafe");
   const [floorColor, setFloorColor] = useState("#efe7da");
+  const [floorPresetId, setFloorPresetId] = useState("tiles-beige");
 
   const [placedItems, setPlacedItems] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
 
   const [draggingId, setDraggingId] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [resizingId, setResizingId] = useState(null);
-  const [resizeStart, setResizeStart] = useState(null);
   const [isCanvasOver, setIsCanvasOver] = useState(false);
 
   const activeItems = LIBRARY_ITEMS[activeSection] || [];
@@ -235,16 +392,18 @@ export default function CreateDesign() {
   }, []);
 
   const selectedItem = placedItems.find((item) => item.id === selectedId) || null;
+  const selectedFloor = FLOOR_PRESETS.find((floor) => floor.id === floorPresetId) || FLOOR_PRESETS[0];
 
-  function saveDraft(items = placedItems) {
-    const draft = {
-      name: roomName,
+  function buildDraft(items = placedItems, overrides = {}) {
+    return {
+      name: overrides.name ?? roomName,
       roomType: "Custom",
-      width: Number(roomWidth),
-      length: Number(roomLength),
-      height: Number(roomHeight),
-      wallColor,
-      floorColor,
+      width: Number(overrides.width ?? roomWidth),
+      length: Number(overrides.length ?? roomLength),
+      height: Number(overrides.height ?? roomHeight),
+      wallColor: overrides.wallColor ?? wallColor,
+      floorColor: overrides.floorColor ?? floorColor,
+      floorTexture: overrides.floorTexture ?? floorPresetId,
       furniture: items.map((item) => ({
         ...item,
         width: Number(item.width),
@@ -252,11 +411,15 @@ export default function CreateDesign() {
         height: Number(item.height),
         x: Number(item.x),
         y: Number(item.y),
-        rotation: Number(item.rotation || 0)
+        rotation: Number(item.rotation || 0),
+        model: item.model || null
       }))
     };
+  }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+  function saveDraft(items = placedItems, overrides = {}) {
+    if (!hydratedRef.current) return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(buildDraft(items, overrides)));
   }
 
   function addItemAtPosition(item, x, y) {
@@ -275,8 +438,7 @@ export default function CreateDesign() {
   }
 
   function handleAddItem(item) {
-    const itemWithModel = withModelUrl(item);
-    addItemAtPosition(itemWithModel, 0.6, 0.6);
+    addItemAtPosition(item, 0.6, 0.6);
   }
 
   function updatePlacedItem(id, updates) {
@@ -331,8 +493,6 @@ export default function CreateDesign() {
       return;
     }
 
-    const itemWithModel = withModelUrl(item);
-
     const rect = canvasRef.current.getBoundingClientRect();
     const pxPerMeterX = rect.width / Number(roomWidth || 1);
     const pxPerMeterY = rect.height / Number(roomLength || 1);
@@ -341,64 +501,33 @@ export default function CreateDesign() {
     const y = (event.clientY - rect.top) / pxPerMeterY - Number(item.depth || 1) / 2;
 
     addItemAtPosition(
-      itemWithModel,
+      item,
       Number(clamp(x, 0, Math.max(0, roomWidth - Number(item.width || 1))).toFixed(2)),
       Number(clamp(y, 0, Math.max(0, roomLength - Number(item.depth || 1))).toFixed(2))
     );
   }
 
   function onCanvasMouseMove(event) {
-    if (!canvasRef.current) return;
+    if (!draggingId || !canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
     const pxPerMeterX = rect.width / Number(roomWidth || 1);
     const pxPerMeterY = rect.height / Number(roomLength || 1);
 
-    if (draggingId) {
-      const rawX = (event.clientX - rect.left - dragOffset.x) / pxPerMeterX;
-      const rawY = (event.clientY - rect.top - dragOffset.y) / pxPerMeterY;
+    const rawX = (event.clientX - rect.left - dragOffset.x) / pxPerMeterX;
+    const rawY = (event.clientY - rect.top - dragOffset.y) / pxPerMeterY;
 
-      const target = placedItems.find((item) => item.id === draggingId);
-      if (!target) return;
+    const target = placedItems.find((item) => item.id === draggingId);
+    if (!target) return;
 
-      updatePlacedItem(draggingId, {
-        x: Number(clamp(rawX, 0, Math.max(0, roomWidth - target.width)).toFixed(2)),
-        y: Number(clamp(rawY, 0, Math.max(0, roomLength - target.depth)).toFixed(2))
-      });
-
-      return;
-    }
-
-    if (resizingId && resizeStart) {
-      const target = placedItems.find((item) => item.id === resizingId);
-      if (!target) return;
-
-      const dx = (event.clientX - resizeStart.startClientX) / pxPerMeterX;
-      const dy = (event.clientY - resizeStart.startClientY) / pxPerMeterY;
-
-      const nextWidth = clamp(
-        resizeStart.startWidth + dx,
-        0.4,
-        Math.max(0.4, roomWidth - target.x)
-      );
-
-      const nextDepth = clamp(
-        resizeStart.startDepth + dy,
-        0.4,
-        Math.max(0.4, roomLength - target.y)
-      );
-
-      updatePlacedItem(resizingId, {
-        width: Number(nextWidth.toFixed(2)),
-        depth: Number(nextDepth.toFixed(2))
-      });
-    }
+    updatePlacedItem(draggingId, {
+      x: Number(clamp(rawX, 0, Math.max(0, roomWidth - target.width)).toFixed(2)),
+      y: Number(clamp(rawY, 0, Math.max(0, roomLength - target.depth)).toFixed(2))
+    });
   }
 
   function onCanvasMouseUp() {
     setDraggingId(null);
-    setResizingId(null);
-    setResizeStart(null);
   }
 
   useEffect(() => {
@@ -407,15 +536,45 @@ export default function CreateDesign() {
   }, []);
 
   useEffect(() => {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      hydratedRef.current = true;
+      return;
+    }
+
+    const draft = safeParse(raw, null);
+    if (!draft) {
+      hydratedRef.current = true;
+      return;
+    }
+
+    setRoomName(draft.name || "My Dream Room");
+    setRoomWidth(Number(draft.width) || 6);
+    setRoomLength(Number(draft.length) || 5);
+    setRoomHeight(Number(draft.height) || 3);
+    setWallColor(draft.wallColor || "#dbeafe");
+    setFloorColor(draft.floorColor || "#efe7da");
+    setFloorPresetId(draft.floorTexture || "tiles-beige");
+
+    if (Array.isArray(draft.furniture)) {
+      setPlacedItems(draft.furniture.map(normalizeItem));
+    }
+
+    hydratedRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
     saveDraft();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomName, roomWidth, roomLength, roomHeight, wallColor, floorColor]);
+  }, [roomName, roomWidth, roomLength, roomHeight, wallColor, floorColor, floorPresetId]);
 
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8fbff 0%, #f1f5f9 100%)"
+        background: "linear-gradient(180deg, #f8fbff 0%, #f1f5f9 100%)",
+        overflowX: "hidden"
       }}
     >
       <header
@@ -448,21 +607,12 @@ export default function CreateDesign() {
             </div>
           </div>
 
-          <nav
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              flexWrap: "wrap"
-            }}
-          >
+          <nav style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             <TopNavItem to="/dashboard">Dashboard</TopNavItem>
-            <TopNavItem to="/create-design" active>
-              Create 2D
-            </TopNavItem>
+            <TopNavItem to="/create-design" active>Create 2D</TopNavItem>
             <TopNavItem to="/portfolio">Portfolio</TopNavItem>
             <button
-              onClick={() => navigate("/preview-3d")}
+              onClick={handlePreview3D}
               style={{
                 border: "1px solid rgba(255,255,255,0.18)",
                 background: "rgba(255,255,255,0.1)",
@@ -479,18 +629,12 @@ export default function CreateDesign() {
         </div>
       </header>
 
-      <div
-        style={{
-          padding: "10px",
-          width: "100%",
-          boxSizing: "border-box"
-        }}
-      >
+      <div style={{ padding: "10px", width: "100%", boxSizing: "border-box" }}>
         <div
           style={{
             width: "100%",
             display: "grid",
-            gridTemplateColumns: "245px 1fr 255px",
+            gridTemplateColumns: "220px minmax(0, 1fr) 230px",
             gap: "10px",
             alignItems: "start"
           }}
@@ -498,12 +642,10 @@ export default function CreateDesign() {
           <aside
             style={{
               background: "rgba(255,255,255,0.92)",
-              backdropFilter: "blur(8px)",
               border: "1px solid #dbe2ea",
               borderRadius: "22px",
               overflow: "hidden",
-              minHeight: "calc(100vh - 96px)",
-              boxShadow: "0 10px 30px rgba(15, 23, 42, 0.05)"
+              minHeight: "calc(100vh - 96px)"
             }}
           >
             <div style={{ display: "flex", borderBottom: "1px solid #e5e7eb" }}>
@@ -552,13 +694,13 @@ export default function CreateDesign() {
                     >
                       <div
                         style={{
-                          width: "42px",
-                          height: "42px",
+                          width: "34px",
+                          height: "34px",
                           display: "grid",
                           placeItems: "center",
                           border: activeSection === section.key ? "1px solid #93c5fd" : "1px solid #dbe2ea",
-                          borderRadius: "12px",
-                          fontSize: "19px",
+                          borderRadius: "11px",
+                          fontSize: "16px",
                           background: "#ffffff",
                           flexShrink: 0
                         }}
@@ -567,14 +709,7 @@ export default function CreateDesign() {
                       </div>
 
                       <div style={{ minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: "14px",
-                            color: "#0f172a",
-                            fontWeight: 700,
-                            lineHeight: 1.2
-                          }}
-                        >
+                        <div style={{ fontSize: "14px", color: "#0f172a", fontWeight: 700 }}>
                           {section.label}
                         </div>
                         <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
@@ -623,9 +758,9 @@ export default function CreateDesign() {
           <main
             style={{
               display: "grid",
-              gridTemplateRows: "auto auto 1fr",
+              gridTemplateRows: "auto auto auto 1fr",
               gap: "10px",
-              minHeight: "calc(100vh - 96px)"
+              minWidth: 0
             }}
           >
             <section
@@ -637,16 +772,15 @@ export default function CreateDesign() {
                 display: "flex",
                 justifyContent: "space-between",
                 gap: "14px",
-                alignItems: "center",
-                boxShadow: "0 12px 30px rgba(37, 99, 235, 0.18)"
+                alignItems: "center"
               }}
             >
               <div>
                 <div style={{ fontSize: "12px", opacity: 0.85, marginBottom: "4px" }}>
                   Design Workspace
                 </div>
-                <div style={{ fontSize: "24px", fontWeight: 800 }}>{roomName}</div>
-                <div style={{ fontSize: "13px", opacity: 0.9, marginTop: "5px" }}>
+                <div style={{ fontSize: "20px", fontWeight: 800 }}>{roomName}</div>
+                <div style={{ fontSize: "12px", opacity: 0.9, marginTop: "4px" }}>
                   {roomWidth}m × {roomLength}m × {roomHeight}m
                 </div>
               </div>
@@ -655,26 +789,25 @@ export default function CreateDesign() {
                 <input
                   value={roomName}
                   onChange={(e) => setRoomName(e.target.value)}
-                  placeholder="Room name"
-                  style={{ ...heroInputStyle, width: "170px" }}
+                  style={{ ...heroInputStyle, width: "150px" }}
                 />
                 <input
                   type="number"
                   value={roomWidth}
                   onChange={(e) => setRoomWidth(Number(e.target.value) || 6)}
-                  style={{ ...heroInputStyle, width: "68px" }}
+                  style={{ ...heroInputStyle, width: "58px" }}
                 />
                 <input
                   type="number"
                   value={roomLength}
                   onChange={(e) => setRoomLength(Number(e.target.value) || 5)}
-                  style={{ ...heroInputStyle, width: "68px" }}
+                  style={{ ...heroInputStyle, width: "58px" }}
                 />
                 <input
                   type="number"
                   value={roomHeight}
                   onChange={(e) => setRoomHeight(Number(e.target.value) || 3)}
-                  style={{ ...heroInputStyle, width: "68px" }}
+                  style={{ ...heroInputStyle, width: "58px" }}
                 />
               </div>
             </section>
@@ -684,8 +817,7 @@ export default function CreateDesign() {
                 background: "rgba(255,255,255,0.92)",
                 border: "1px solid #dbe2ea",
                 borderRadius: "22px",
-                padding: "14px",
-                boxShadow: "0 8px 24px rgba(15, 23, 42, 0.04)"
+                padding: "14px"
               }}
             >
               <div style={{ fontSize: "17px", fontWeight: 800, color: "#0f172a", marginBottom: "10px" }}>
@@ -695,20 +827,110 @@ export default function CreateDesign() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(7, minmax(140px, 1fr))",
-                  gap: "10px",
-                  overflowX: "auto",
-                  paddingBottom: "4px"
+                  gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+                  gap: "10px"
                 }}
               >
                 {quickAddItems.map((item) => (
-                  <PreviewCard
+                  <button
                     key={item.id}
-                    item={item}
-                    compact
                     onClick={() => handleAddItem(item)}
+                    draggable
                     onDragStart={(e) => handleLibraryDragStart(e, item)}
-                  />
+                    style={{
+                      border: "1px solid #dbe2ea",
+                      background: "#ffffff",
+                      borderRadius: "16px",
+                      padding: "10px",
+                      textAlign: "left",
+                      cursor: "grab",
+                      minWidth: 0
+                    }}
+                  >
+                    <MiniModelCard item={item} height={54} />
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        color: "#0f172a",
+                        fontSize: "13px",
+                        marginTop: "8px",
+                        lineHeight: 1.2
+                      }}
+                    >
+                      {item.type}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section
+              style={{
+                background: "rgba(255,255,255,0.92)",
+                border: "1px solid #dbe2ea",
+                borderRadius: "22px",
+                padding: "12px 14px"
+              }}
+            >
+              <div style={{ fontSize: "17px", fontWeight: 800, color: "#0f172a", marginBottom: "6px" }}>
+                Floor Styles
+              </div>
+
+              <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "10px" }}>
+                Choose a floor finish for this room.
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                  gap: "10px"
+                }}
+              >
+                {FLOOR_PRESETS.map((floor) => (
+                  <button
+                    key={floor.id}
+                    type="button"
+                    onClick={() => {
+                      setFloorPresetId(floor.id);
+                      saveDraft(placedItems, { floorTexture: floor.id });
+                    }}
+                    style={{
+                      border: floorPresetId === floor.id ? "2px solid #2563eb" : "1px solid #dbe2ea",
+                      background: floorPresetId === floor.id ? "#eff6ff" : "#ffffff",
+                      borderRadius: "14px",
+                      padding: "8px",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      minWidth: 0
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "50px",
+                        borderRadius: "10px",
+                        backgroundImage: `url(${floor.preview})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        border: "1px solid #e5e7eb",
+                        marginBottom: "6px"
+                      }}
+                    />
+
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        color: "#0f172a",
+                        fontSize: "12px",
+                        lineHeight: 1.2,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis"
+                      }}
+                    >
+                      {floor.name}
+                    </div>
+                  </button>
                 ))}
               </div>
             </section>
@@ -716,9 +938,9 @@ export default function CreateDesign() {
             <section
               style={{
                 display: "grid",
-                gridTemplateColumns: "290px 1fr",
+                gridTemplateColumns: "250px minmax(0, 1fr)",
                 gap: "10px",
-                minHeight: 0
+                minWidth: 0
               }}
             >
               <div
@@ -726,14 +948,13 @@ export default function CreateDesign() {
                   background: "rgba(255,255,255,0.92)",
                   border: "1px solid #dbe2ea",
                   borderRadius: "22px",
-                  padding: "14px",
-                  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.04)",
-                  minHeight: 0
+                  padding: "14px"
                 }}
               >
                 <div style={{ fontSize: "22px", fontWeight: 800, color: "#0f172a" }}>
                   {LIBRARY_SECTIONS.find((s) => s.key === activeSection)?.label}
                 </div>
+
                 <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px", marginBottom: "12px" }}>
                   Drag an item into the room or click to add.
                 </div>
@@ -741,20 +962,40 @@ export default function CreateDesign() {
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
+                    gridTemplateColumns: "1fr",
                     gap: "10px",
-                    maxHeight: "420px",
+                    maxHeight: "360px",
                     overflowY: "auto",
                     paddingRight: "2px"
                   }}
                 >
                   {filteredItems.map((item) => (
-                    <PreviewCard
+                    <button
                       key={item.id}
-                      item={item}
                       onClick={() => handleAddItem(item)}
+                      draggable
                       onDragStart={(e) => handleLibraryDragStart(e, item)}
-                    />
+                      style={{
+                        border: "1px solid #dbe2ea",
+                        background: "#ffffff",
+                        borderRadius: "14px",
+                        padding: "10px",
+                        textAlign: "left",
+                        cursor: "grab"
+                      }}
+                    >
+                      <MiniModelCard item={item} height={68} />
+                      <div
+                        style={{
+                          fontWeight: 700,
+                          color: "#0f172a",
+                          fontSize: "13px",
+                          marginTop: "8px"
+                        }}
+                      >
+                        {item.type}
+                      </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -765,10 +1006,9 @@ export default function CreateDesign() {
                   border: "1px solid #dbe2ea",
                   borderRadius: "22px",
                   padding: "14px",
-                  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.04)",
                   display: "grid",
                   gridTemplateRows: "auto 1fr",
-                  minHeight: 0
+                  minWidth: 0
                 }}
               >
                 <div
@@ -799,7 +1039,7 @@ export default function CreateDesign() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    minHeight: 0
+                    minWidth: 0
                   }}
                 >
                   <div
@@ -819,9 +1059,7 @@ export default function CreateDesign() {
                       border: isCanvasOver ? "3px solid #2563eb" : "3px solid #94a3b8",
                       borderRadius: "16px",
                       position: "relative",
-                      overflow: "hidden",
-                      transition: "border-color 0.15s ease, box-shadow 0.15s ease",
-                      boxShadow: isCanvasOver ? "0 0 0 4px rgba(37,99,235,0.12)" : "none"
+                      overflow: "hidden"
                     }}
                   >
                     {placedItems.length === 0 && (
@@ -833,9 +1071,7 @@ export default function CreateDesign() {
                           placeItems: "center",
                           color: "#475569",
                           fontWeight: 700,
-                          fontSize: "20px",
-                          textAlign: "center",
-                          padding: "20px"
+                          fontSize: "20px"
                         }}
                       >
                         Drag items here or click to add ✨
@@ -853,11 +1089,13 @@ export default function CreateDesign() {
                           key={item.id}
                           onMouseDown={(event) => {
                             if (!canvasRef.current) return;
+
+                            setSelectedId(item.id);
+
                             const rect = canvasRef.current.getBoundingClientRect();
                             const pxPerMeterX = rect.width / roomWidth;
                             const pxPerMeterY = rect.height / roomLength;
 
-                            setSelectedId(item.id);
                             setDraggingId(item.id);
                             setDragOffset({
                               x: event.clientX - rect.left - item.x * pxPerMeterX,
@@ -874,11 +1112,10 @@ export default function CreateDesign() {
                             background: item.color || "#60a5fa",
                             borderRadius: "12px",
                             transform: `rotate(${item.rotation || 0}deg)`,
-                            transformOrigin: "center center",
                             boxShadow:
                               selectedId === item.id
                                 ? "0 0 0 4px rgba(37,99,235,0.15)"
-                                : "0 10px 18px rgba(15, 23, 42, 0.14)",
+                                : "0 10px 18px rgba(15,23,42,0.14)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -886,42 +1123,12 @@ export default function CreateDesign() {
                             fontSize: "12px",
                             fontWeight: 700,
                             cursor: "move",
-                            userSelect: "none",
                             textAlign: "center",
                             padding: "4px",
-                            boxSizing: "border-box",
-                            overflow: "visible"
+                            boxSizing: "border-box"
                           }}
                         >
                           {item.type}
-
-                          {selectedId === item.id && (
-                            <div
-                              onMouseDown={(event) => {
-                                event.stopPropagation();
-                                setSelectedId(item.id);
-                                setResizingId(item.id);
-                                setResizeStart({
-                                  startClientX: event.clientX,
-                                  startClientY: event.clientY,
-                                  startWidth: item.width,
-                                  startDepth: item.depth
-                                });
-                              }}
-                              style={{
-                                position: "absolute",
-                                right: "-7px",
-                                bottom: "-7px",
-                                width: "14px",
-                                height: "14px",
-                                borderRadius: "50%",
-                                background: "#2563eb",
-                                border: "2px solid #ffffff",
-                                boxShadow: "0 2px 8px rgba(37,99,235,0.35)",
-                                cursor: "nwse-resize"
-                              }}
-                            />
-                          )}
                         </div>
                       );
                     })}
@@ -934,44 +1141,43 @@ export default function CreateDesign() {
           <aside
             style={{
               background: "rgba(255,255,255,0.92)",
-              backdropFilter: "blur(8px)",
               border: "1px solid #dbe2ea",
               borderRadius: "22px",
               minHeight: "calc(100vh - 96px)",
-              padding: "14px",
-              boxShadow: "0 10px 30px rgba(15, 23, 42, 0.05)"
+              padding: "14px"
             }}
           >
             <div style={{ fontSize: "20px", fontWeight: 800, color: "#0f172a", marginBottom: "10px" }}>
               Inspector
             </div>
 
-            <div style={{ display: "grid", gap: "10px", marginBottom: "14px" }}>
-              <div>
-                <label style={labelStyle}>Wall Color</label>
-                <input
-                  type="color"
-                  value={wallColor}
-                  onChange={(e) => setWallColor(e.target.value)}
-                  style={colorInputStyle}
-                />
-              </div>
+            <div style={{ marginBottom: "12px" }}>
+              <label style={labelStyle}>Wall Color</label>
+              <input type="color" value={wallColor} onChange={(e) => setWallColor(e.target.value)} style={colorInputStyle} />
+            </div>
 
-              <div>
-                <label style={labelStyle}>Floor Color</label>
-                <input
-                  type="color"
-                  value={floorColor}
-                  onChange={(e) => setFloorColor(e.target.value)}
-                  style={colorInputStyle}
-                />
+            <div style={{ marginBottom: "12px" }}>
+              <label style={labelStyle}>Floor Color</label>
+              <input type="color" value={floorColor} onChange={(e) => setFloorColor(e.target.value)} style={colorInputStyle} />
+            </div>
+
+            <div
+              style={{
+                border: "1px solid #dbe2ea",
+                borderRadius: "16px",
+                padding: "12px",
+                background: "#f8fafc",
+                marginBottom: "12px"
+              }}
+            >
+              <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>Selected Floor</div>
+              <div style={{ fontSize: "16px", fontWeight: 800, color: "#0f172a" }}>
+                {selectedFloor?.name || "Beige Tiles"}
               </div>
             </div>
 
             {!selectedItem ? (
-              <div style={emptyCardStyle}>
-                Select an item from the canvas to edit it.
-              </div>
+              <div style={emptyCardStyle}>Select an item from the canvas to edit it.</div>
             ) : (
               <div style={{ display: "grid", gap: "10px" }}>
                 <div
@@ -982,12 +1188,8 @@ export default function CreateDesign() {
                     background: "#f8fafc"
                   }}
                 >
-                  <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>
-                    Selected Item
-                  </div>
-                  <div style={{ fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
-                    {selectedItem.type}
-                  </div>
+                  <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>Selected Item</div>
+                  <div style={{ fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>{selectedItem.type}</div>
                 </div>
 
                 <div>
@@ -998,13 +1200,7 @@ export default function CreateDesign() {
                     value={selectedItem.x}
                     onChange={(e) =>
                       updatePlacedItem(selectedItem.id, {
-                        x: Number(
-                          clamp(
-                            Number(e.target.value) || 0,
-                            0,
-                            Math.max(0, roomWidth - selectedItem.width)
-                          ).toFixed(2)
-                        )
+                        x: Number(clamp(Number(e.target.value) || 0, 0, Math.max(0, roomWidth - selectedItem.width)).toFixed(2))
                       })
                     }
                     style={inputStyle}
@@ -1019,13 +1215,7 @@ export default function CreateDesign() {
                     value={selectedItem.y}
                     onChange={(e) =>
                       updatePlacedItem(selectedItem.id, {
-                        y: Number(
-                          clamp(
-                            Number(e.target.value) || 0,
-                            0,
-                            Math.max(0, roomLength - selectedItem.depth)
-                          ).toFixed(2)
-                        )
+                        y: Number(clamp(Number(e.target.value) || 0, 0, Math.max(0, roomLength - selectedItem.depth)).toFixed(2))
                       })
                     }
                     style={inputStyle}
@@ -1040,13 +1230,7 @@ export default function CreateDesign() {
                     value={selectedItem.width}
                     onChange={(e) =>
                       updatePlacedItem(selectedItem.id, {
-                        width: Number(
-                          clamp(
-                            Number(e.target.value) || 0.4,
-                            0.4,
-                            Math.max(0.4, roomWidth - selectedItem.x)
-                          ).toFixed(2)
-                        )
+                        width: Number(clamp(Number(e.target.value) || 0.4, 0.4, 4).toFixed(2))
                       })
                     }
                     style={inputStyle}
@@ -1061,13 +1245,7 @@ export default function CreateDesign() {
                     value={selectedItem.depth}
                     onChange={(e) =>
                       updatePlacedItem(selectedItem.id, {
-                        depth: Number(
-                          clamp(
-                            Number(e.target.value) || 0.4,
-                            0.4,
-                            Math.max(0.4, roomLength - selectedItem.y)
-                          ).toFixed(2)
-                        )
+                        depth: Number(clamp(Number(e.target.value) || 0.4, 0.4, 4).toFixed(2))
                       })
                     }
                     style={inputStyle}
@@ -1157,6 +1335,17 @@ const inputStyle = {
   boxSizing: "border-box"
 };
 
+const colorInputStyle = {
+  width: "100%",
+  height: "34px",
+  padding: "4px",
+  borderRadius: "12px",
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  boxSizing: "border-box",
+  cursor: "pointer"
+};
+
 const heroInputStyle = {
   padding: "11px 13px",
   borderRadius: "13px",
@@ -1173,17 +1362,6 @@ const labelStyle = {
   fontWeight: 700,
   color: "#475569",
   marginBottom: "6px"
-};
-
-const colorInputStyle = {
-  width: "100%",
-  height: "44px",
-  borderRadius: "12px",
-  border: "1px solid #cbd5e1",
-  background: "#ffffff",
-  cursor: "pointer",
-  padding: "4px",
-  boxSizing: "border-box"
 };
 
 const primaryButtonStyle = {

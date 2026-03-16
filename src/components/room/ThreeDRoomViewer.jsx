@@ -1,23 +1,18 @@
 import * as THREE from "three";
 import { Suspense, useMemo } from "react";
-import { Canvas } from "@react-three/fiber";
-import {
-  OrbitControls,
-  Environment,
-  ContactShadows,
-  useGLTF
-} from "@react-three/drei";
+import { Canvas, useThree } from "@react-three/fiber";
+import { ContactShadows, Environment, OrbitControls, useGLTF, useTexture } from "@react-three/drei";
+import { getFloorPresetById } from "../../data/floorPresets";
+import { supabase } from "../../lib/supabase";
 
-function tintMaterial(material, colorValue) {
-  if (!material) return material;
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
 
-  const cloned = material.clone();
-
-  if ("color" in cloned && cloned.color) {
-    cloned.color = new THREE.Color(colorValue);
-  }
-
-  return cloned;
+function getModelUrl(path) {
+  if (!path) return null;
+  const { data } = supabase.storage.from("furniture-models").getPublicUrl(path);
+  return data?.publicUrl || null;
 }
 
 function FurnitureFallbackBox({ item, position, rotation, themeMode }) {
@@ -26,55 +21,99 @@ function FurnitureFallbackBox({ item, position, rotation, themeMode }) {
       <boxGeometry args={[item.width, item.height, item.depth]} />
       <meshStandardMaterial
         color={item.color || "#60a5fa"}
-        roughness={themeMode === "dark" ? 0.65 : 0.55}
-        metalness={themeMode === "dark" ? 0.12 : 0.08}
+        roughness={themeMode === "dark" ? 0.68 : 0.56}
+        metalness={0.08}
       />
     </mesh>
   );
 }
 
 function FurnitureModel({ item, position, rotation }) {
-  const { scene } = useGLTF(item.model);
+  const modelUrl = useMemo(() => getModelUrl(item.model), [item.model]);
+  const { scene } = useGLTF(modelUrl || "/dummy.glb", true);
 
-  const clonedScene = useMemo(() => {
+  const preparedScene = useMemo(() => {
+    if (!scene) return null;
+
     const cloned = scene.clone(true);
 
-    cloned.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
+    const originalBox = new THREE.Box3().setFromObject(cloned);
+    const originalSize = new THREE.Vector3();
+    const originalCenter = new THREE.Vector3();
 
-        if (Array.isArray(child.material)) {
-          child.material = child.material.map((mat) =>
-            tintMaterial(mat, item.color || "#ffffff")
-          );
-        } else {
-          child.material = tintMaterial(child.material, item.color || "#ffffff");
-        }
+    originalBox.getSize(originalSize);
+    originalBox.getCenter(originalCenter);
+
+    cloned.position.sub(originalCenter);
+
+    const maxX = Math.max(originalSize.x || 1, 0.001);
+    const maxY = Math.max(originalSize.y || 1, 0.001);
+    const maxZ = Math.max(originalSize.z || 1, 0.001);
+
+    const targetX = Math.max(item.width || 1, 0.001);
+    const targetY = Math.max(item.height || 1, 0.001);
+    const targetZ = Math.max(item.depth || 1, 0.001);
+
+    const scaleX = targetX / maxX;
+    const scaleY = targetY / maxY;
+    const scaleZ = targetZ / maxZ;
+    const uniformScale = Math.min(scaleX, scaleY, scaleZ);
+
+    cloned.scale.setScalar(uniformScale);
+
+    const finalBox = new THREE.Box3().setFromObject(cloned);
+    const finalCenter = new THREE.Vector3();
+    finalBox.getCenter(finalCenter);
+
+    cloned.position.x -= finalCenter.x;
+    cloned.position.z -= finalCenter.z;
+    cloned.position.y -= finalBox.min.y;
+
+    cloned.traverse((child) => {
+      if (!child.isMesh) return;
+      child.castShadow = true;
+      child.receiveShadow = true;
+      if (child.material) {
+        child.material = child.material.clone();
+        child.material.needsUpdate = true;
       }
     });
 
     return cloned;
-  }, [scene, item.color]);
+  }, [scene, item.width, item.height, item.depth]);
 
-  return (
-    <primitive
-      object={clonedScene}
-      position={position}
-      rotation={rotation}
-      scale={1}
-    />
-  );
+  if (!modelUrl || !preparedScene) {
+    return null;
+  }
+
+  return <primitive object={preparedScene} position={position} rotation={rotation} />;
 }
 
 function FurnitureItem3D({ item, roomWidth, roomLength, themeMode }) {
-  const x = -roomWidth / 2 + item.x + item.width / 2;
-  const z = -roomLength / 2 + item.y + item.depth / 2;
+  const safeWidth = Number(item.width) || 1;
+  const safeDepth = Number(item.depth) || 1;
+  const safeHeight = Number(item.height) || 1;
+
+  const clampedX = clamp(Number(item.x) || 0, 0, Math.max(0, roomWidth - safeWidth));
+  const clampedY = clamp(Number(item.y) || 0, 0, Math.max(0, roomLength - safeDepth));
+
+  const x = -roomWidth / 2 + clampedX + safeWidth / 2;
+  const z = -roomLength / 2 + clampedY + safeDepth / 2;
+
   const rotation = [0, ((item.rotation || 0) * Math.PI) / 180, 0];
 
   if (item.model) {
     return (
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={
+          <FurnitureFallbackBox
+            item={item}
+            position={[x, safeHeight / 2, z]}
+            rotation={rotation}
+            themeMode={themeMode}
+          />
+        }
+      >
         <FurnitureModel item={item} position={[x, 0, z]} rotation={rotation} />
       </Suspense>
     );
@@ -83,53 +122,77 @@ function FurnitureItem3D({ item, roomWidth, roomLength, themeMode }) {
   return (
     <FurnitureFallbackBox
       item={item}
-      position={[x, item.height / 2, z]}
+      position={[x, safeHeight / 2, z]}
       rotation={rotation}
       themeMode={themeMode}
     />
   );
 }
 
+function TileFloor({ roomWidth, roomLength, floorTextureId, themeMode }) {
+  const preset = getFloorPresetById(floorTextureId);
+  const texture = useTexture(preset.texture);
+  const { gl } = useThree();
+
+  useMemo(() => {
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(roomWidth / preset.repeatX, roomLength / preset.repeatY);
+    texture.anisotropy = gl.capabilities.getMaxAnisotropy();
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+  }, [texture, roomWidth, roomLength, gl, preset]);
+
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <planeGeometry args={[roomWidth, roomLength]} />
+      <meshStandardMaterial
+        map={texture}
+        color={themeMode === "dark" ? "#d7d1c8" : "#ffffff"}
+        roughness={0.92}
+        metalness={0.02}
+      />
+    </mesh>
+  );
+}
+
 function WallSet({ roomWidth, roomLength, roomHeight, wallMode, wallColor, themeMode }) {
   const wallThickness = 0.06;
 
-  if (wallMode === "hidden") {
-    return null;
-  }
+  if (wallMode === "hidden") return null;
 
-  const resolvedWallColor =
-    themeMode === "dark" ? "#334155" : wallColor || "#dbeafe";
+  const resolvedWallColor = themeMode === "dark" ? "#2a3446" : wallColor || "#eef2f7";
 
   const materialProps =
     wallMode === "transparent"
       ? {
           color: resolvedWallColor,
           transparent: true,
-          opacity: themeMode === "dark" ? 0.22 : 0.18,
-          roughness: 0.2,
-          transmission: 0.06
+          opacity: themeMode === "dark" ? 0.18 : 0.14,
+          roughness: 0.35,
+          metalness: 0.02
         }
       : {
           color: resolvedWallColor,
           transparent: false,
           opacity: 1,
-          roughness: themeMode === "dark" ? 0.95 : 0.9,
-          transmission: 0
+          roughness: 0.96,
+          metalness: 0.01
         };
 
   return (
     <>
-      <mesh position={[0, roomHeight / 2, -roomLength / 2]} receiveShadow>
+      <mesh position={[0, roomHeight / 2, -roomLength / 2]} receiveShadow castShadow>
         <boxGeometry args={[roomWidth, roomHeight, wallThickness]} />
         <meshPhysicalMaterial {...materialProps} />
       </mesh>
 
-      <mesh position={[-roomWidth / 2, roomHeight / 2, 0]} receiveShadow>
+      <mesh position={[-roomWidth / 2, roomHeight / 2, 0]} receiveShadow castShadow>
         <boxGeometry args={[wallThickness, roomHeight, roomLength]} />
         <meshPhysicalMaterial {...materialProps} />
       </mesh>
 
-      <mesh position={[roomWidth / 2, roomHeight / 2, 0]} receiveShadow>
+      <mesh position={[roomWidth / 2, roomHeight / 2, 0]} receiveShadow castShadow>
         <boxGeometry args={[wallThickness, roomHeight, roomLength]} />
         <meshPhysicalMaterial {...materialProps} />
       </mesh>
@@ -137,46 +200,38 @@ function WallSet({ roomWidth, roomLength, roomHeight, wallMode, wallColor, theme
   );
 }
 
-function RoomShell({
-  roomWidth,
-  roomLength,
-  roomHeight,
-  wallMode,
-  wallColor,
-  floorColor,
-  themeMode
-}) {
-  const resolvedFloorColor =
-    themeMode === "dark" ? "#1e1b18" : floorColor || "#efe7da";
+function RoomScene({ design, wallMode, themeMode }) {
+  const roomWidth = Number(design?.width) || 6;
+  const roomLength = Number(design?.length) || 5;
+  const roomHeight = Number(design?.height) || 3;
+  const wallColor = design?.wallColor || "#dbeafe";
+  const floorTextureId = design?.floorTexture || "tiles-beige";
+  const furniture = Array.isArray(design?.furniture) ? design.furniture : [];
+  const isDark = themeMode === "dark";
+
+  const sceneBg = isDark ? "#182235" : "#edf2f7";
 
   return (
     <>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[roomWidth, roomLength]} />
-        <meshStandardMaterial
-          color={resolvedFloorColor}
-          roughness={themeMode === "dark" ? 1 : 0.95}
-          metalness={0.02}
-        />
-      </mesh>
+      <color attach="background" args={[sceneBg]} />
 
-      <lineSegments position={[0, roomHeight, 0]}>
-        <edgesGeometry args={[new THREE.BoxGeometry(roomWidth, 0.001, roomLength)]} />
-        <lineBasicMaterial
-          color={themeMode === "dark" ? "#475569" : "#cbd5e1"}
-          transparent
-          opacity={themeMode === "dark" ? 0.3 : 0.25}
-        />
-      </lineSegments>
+      <ambientLight intensity={0.9} />
+      <hemisphereLight args={["#ffffff", "#a8b3c2", 1.05]} />
+      <directionalLight
+        position={[10, 14, 10]}
+        intensity={2.5}
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+      />
+      <pointLight position={[-5, 4, -5]} intensity={0.35} />
 
-      <lineSegments position={[0, 0.01, 0]}>
-        <edgesGeometry args={[new THREE.BoxGeometry(roomWidth, 0.001, roomLength)]} />
-        <lineBasicMaterial
-          color={themeMode === "dark" ? "#334155" : "#94a3b8"}
-          transparent
-          opacity={themeMode === "dark" ? 0.28 : 0.22}
-        />
-      </lineSegments>
+      <TileFloor
+        roomWidth={roomWidth}
+        roomLength={roomLength}
+        floorTextureId={floorTextureId}
+        themeMode={themeMode}
+      />
 
       <WallSet
         roomWidth={roomWidth}
@@ -186,51 +241,8 @@ function RoomShell({
         wallColor={wallColor}
         themeMode={themeMode}
       />
-    </>
-  );
-}
 
-function RoomScene({ design, wallMode, themeMode }) {
-  const roomWidth = Number(design.width) || 6;
-  const roomLength = Number(design.length) || 5;
-  const roomHeight = Number(design.height) || 3;
-  const wallColor = design.wallColor || "#dbeafe";
-  const floorColor = design.floorColor || "#efe7da";
-  const isDark = themeMode === "dark";
-
-  const sceneBg = isDark ? "#0f172a" : "#eef2f7";
-  const gridPrimary = isDark ? "#334155" : "#dbe2ea";
-  const gridSecondary = isDark ? "#1e293b" : "#eef2f7";
-
-  return (
-    <>
-      <color attach="background" args={[sceneBg]} />
-
-      <ambientLight intensity={isDark ? 0.75 : 1.0} />
-      <directionalLight
-        position={[6, 10, 5]}
-        intensity={isDark ? 1.6 : 1.3}
-        castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-      />
-      <pointLight position={[-4, 5, -3]} intensity={isDark ? 0.55 : 0.35} />
-      <hemisphereLight args={["#ffffff", isDark ? "#0f172a" : "#cbd5e1", isDark ? 0.75 : 0.6]} />
-
-      <gridHelper args={[24, 24, gridPrimary, gridSecondary]} position={[0, 0.001, 0]} />
-      <axesHelper args={[1.4]} position={[0, 0.01, 0]} />
-
-      <RoomShell
-        roomWidth={roomWidth}
-        roomLength={roomLength}
-        roomHeight={roomHeight}
-        wallMode={wallMode}
-        wallColor={wallColor}
-        floorColor={floorColor}
-        themeMode={themeMode}
-      />
-
-      {design.furniture?.map((item) => (
+      {furniture.map((item) => (
         <FurnitureItem3D
           key={item.id}
           item={item}
@@ -242,20 +254,20 @@ function RoomScene({ design, wallMode, themeMode }) {
 
       <ContactShadows
         position={[0, 0.001, 0]}
-        opacity={isDark ? 0.28 : 0.2}
-        scale={20}
-        blur={2}
-        far={10}
+        opacity={isDark ? 0.34 : 0.24}
+        scale={26}
+        blur={2.8}
+        far={12}
       />
 
-      <Environment preset={isDark ? "night" : "city"} />
+      <Environment preset={isDark ? "night" : "apartment"} />
     </>
   );
 }
 
 export default function ThreeDRoomViewer({
   design,
-  wallMode = "transparent",
+  wallMode = "solid",
   themeMode = "light"
 }) {
   const roomWidth = Number(design?.width) || 6;
@@ -263,9 +275,9 @@ export default function ThreeDRoomViewer({
   const roomHeight = Number(design?.height) || 3;
   const isDark = themeMode === "dark";
 
-  const camX = Math.max(roomWidth * 0.9, 5.5);
-  const camY = Math.max(roomHeight * 1.7, 4.8);
-  const camZ = Math.max(roomLength * 1.1, 6.5);
+  const camX = Math.max(roomWidth * 1.05, 7.5);
+  const camY = Math.max(roomHeight * 1.85, 5.8);
+  const camZ = Math.max(roomLength * 1.25, 7.8);
 
   return (
     <div
@@ -276,19 +288,27 @@ export default function ThreeDRoomViewer({
         borderRadius: "22px",
         overflow: "hidden",
         border: `1px solid ${isDark ? "#1e293b" : "#dbe2ea"}`,
-        background: isDark ? "#0b1120" : "#eef2f7"
+        background: isDark ? "#141d2c" : "#edf2f7"
       }}
     >
-      <Canvas shadows camera={{ position: [camX, camY, camZ], fov: 42 }}>
+      <Canvas
+        shadows
+        dpr={[1, 2]}
+        camera={{ position: [camX, camY, camZ], fov: 32 }}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
+      >
         <RoomScene design={design} wallMode={wallMode} themeMode={themeMode} />
         <OrbitControls
-          enablePan
+          enablePan={false}
           enableZoom
           enableRotate
-          maxPolarAngle={Math.PI / 2.05}
-          minDistance={3}
+          minDistance={7}
           maxDistance={20}
-          target={[0, 0.8, 0]}
+          minPolarAngle={Math.PI / 4.5}
+          maxPolarAngle={Math.PI / 2.15}
+          minAzimuthAngle={-Math.PI / 3.2}
+          maxAzimuthAngle={Math.PI / 3.2}
+          target={[0, 0.9, 0]}
         />
       </Canvas>
     </div>

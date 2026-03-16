@@ -38,14 +38,7 @@ function InfoCard({ label, value }) {
 
 function SectionTitle({ title }) {
   return (
-    <div
-      style={{
-        fontSize: "13px",
-        fontWeight: 800,
-        color: "#0f172a",
-        marginBottom: "8px"
-      }}
-    >
+    <div style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a", marginBottom: "8px" }}>
       {title}
     </div>
   );
@@ -73,12 +66,11 @@ function ModeButton({ active, onClick, label }) {
 export default function Preview3D() {
   const navigate = useNavigate();
   const [design, setDesign] = useState(null);
-  const [wallMode, setWallMode] = useState("transparent");
+  const [wallMode, setWallMode] = useState("solid");
   const [themeMode, setThemeMode] = useState("light");
 
   useEffect(() => {
     setDesign(readDraft());
-
     const onFocus = () => setDesign(readDraft());
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
@@ -86,48 +78,8 @@ export default function Preview3D() {
 
   if (!design) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "grid",
-          placeItems: "center",
-          padding: "20px",
-          background: "#f1f5f9"
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: "520px",
-            background: "#ffffff",
-            border: "1px solid #dbe2ea",
-            borderRadius: "24px",
-            padding: "28px",
-            textAlign: "center",
-            boxShadow: "0 20px 50px rgba(15,23,42,0.08)"
-          }}
-        >
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#0f172a", marginBottom: "10px" }}>
-            No Preview Data
-          </div>
-          <div style={{ color: "#64748b", fontSize: "15px", marginBottom: "18px" }}>
-            Save or preview a room from the 2D editor first.
-          </div>
-          <button
-            onClick={() => navigate("/create-design")}
-            style={{
-              border: "none",
-              background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-              color: "#ffffff",
-              padding: "12px 16px",
-              borderRadius: "14px",
-              fontWeight: 800,
-              cursor: "pointer"
-            }}
-          >
-            Go to Create Design
-          </button>
-        </div>
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#f1f5f9" }}>
+        <button onClick={() => navigate("/create-design")}>Go to Create Design</button>
       </div>
     );
   }
@@ -139,32 +91,15 @@ export default function Preview3D() {
   const furnitureCount = Array.isArray(design.furniture) ? design.furniture.length : 0;
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#f1f5f9",
-        padding: "12px",
-        boxSizing: "border-box"
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          display: "grid",
-          gridTemplateColumns: "260px 1fr",
-          gap: "12px",
-          alignItems: "start"
-        }}
-      >
+    <div style={{ minHeight: "100vh", background: "#f1f5f9", padding: "12px", boxSizing: "border-box" }}>
+      <div style={{ width: "100%", display: "grid", gridTemplateColumns: "260px 1fr", gap: "12px" }}>
         <aside
           style={{
             background: "rgba(255,255,255,0.94)",
             border: "1px solid #dbe2ea",
             borderRadius: "24px",
             padding: "14px",
-            minHeight: "calc(100vh - 24px)",
-            boxShadow: "0 12px 30px rgba(15,23,42,0.06)",
-            backdropFilter: "blur(10px)"
+            minHeight: "calc(100vh - 24px)"
           }}
         >
           <div
@@ -176,13 +111,9 @@ export default function Preview3D() {
               marginBottom: "14px"
             }}
           >
-            <div style={{ fontSize: "12px", opacity: 0.84, marginBottom: "6px" }}>
-              3D Preview Workspace
-            </div>
+            <div style={{ fontSize: "12px", opacity: 0.84, marginBottom: "6px" }}>3D Preview Workspace</div>
             <div style={{ fontSize: "20px", fontWeight: 800 }}>{roomName}</div>
-            <div style={{ fontSize: "14px", marginTop: "6px", opacity: 0.9 }}>
-              Explore your room in 3D
-            </div>
+            <div style={{ fontSize: "14px", marginTop: "6px", opacity: 0.9 }}>Explore your room in 3D</div>
           </div>
 
           <InfoCard label="Room" value={roomName} />
@@ -215,7 +146,7 @@ export default function Preview3D() {
               Tips
             </div>
             <div style={{ color: "#475569", fontSize: "14px", lineHeight: 1.55 }}>
-              Light/Dark switch affects only the 3D canvas box. The rest of the page stays normal.
+              Solid walls + Light Canvas is best. Models and selected floor now load from the same draft.
             </div>
           </div>
 
@@ -261,15 +192,10 @@ export default function Preview3D() {
             border: "1px solid #dbe2ea",
             borderRadius: "24px",
             padding: "10px",
-            minHeight: "calc(100vh - 24px)",
-            boxShadow: "0 12px 30px rgba(15,23,42,0.06)"
+            minHeight: "calc(100vh - 24px)"
           }}
         >
-          <ThreeDRoomViewer
-            design={design}
-            wallMode={wallMode}
-            themeMode={themeMode}
-          />
+          <ThreeDRoomViewer design={design} wallMode={wallMode} themeMode={themeMode} />
         </main>
       </div>
     </div>

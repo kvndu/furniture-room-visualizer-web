@@ -1,38 +1,37 @@
-export const MODEL_PATHS = {
-  // Kitchens
-  "L Kitchen": "kitchens/kitchenCabinetCornerRound.glb",
-  "Straight Kitchen": "kitchens/kitchenCabinet.glb",
-  "Island Kitchen": "kitchens/kitchenBar.glb",
+export const MODEL_MAP = {
+  "Queen Bed": "beds/bedDouble.glb",
+  "Single Bed": "beds/bedSingle.glb",
 
-  // Cabinets
-  "Base Cabinet": "kitchens/kitchenCabinet.glb",
-  "Wall Cabinet": "kitchens/kitchenCabinetUpper.glb",
-  "TV Unit": "cabinets/cabinetTelevision.glb",
+  Wardrobe: "wardrobes/bookcaseClosed.glb",
+  "Sliding Wardrobe": "wardrobes/bookcaseClosedWide.glb",
 
-  // Tables
   "Dining Table": "tables/table.glb",
   "Coffee Table": "tables/tableCoffee.glb",
   "Work Desk": "home-equipment/desk.glb",
 
-  // Beds
-  "Queen Bed": "beds/bedDouble.glb",
-  "Single Bed": "beds/bedSingle.glb",
-
-  // Wardrobes
-  Wardrobe: "wardrobes/bookcaseClosed.glb",
-  "Sliding Wardrobe": "wardrobes/bookcaseClosedWide.glb",
-
-  // Home Equipment
-  "Office Chair": "home-equipment/chairDesk.glb",
+  "Office Chair": "home-equipment/chairModernCushion.glb",
   Bookshelf: "wardrobes/bookcaseOpen.glb",
-  "Side Cabinet": "details/sideTableDrawers.glb",
+  "Side Cabinet": "cabinets/cabinetTelevision.glb",
 
-  // Details
-  Lamp: "home-equipment/lampRoundFloor.glb",
+  Lamp: "home-equipment/lampSquareFloor.glb",
   Mirror: "other/bathroomMirror.glb",
   Plant: "details/pottedPlant.glb",
 
-  // Other
   Bench: "wardrobes/bench.glb",
-  "Storage Box": "home-equipment/cardboardBoxClosed.glb"
+  "Storage Box": "home-equipment/cardboardBoxClosed.glb",
+
+  "L Kitchen": "kitchens/kitchenCabinetCornerInner.glb",
+  "Straight Kitchen": "kitchens/kitchenCabinet.glb",
+  "Island Kitchen": "kitchens/kitchenBar.glb",
+
+  "Base Cabinet": "kitchens/kitchenCabinet.glb",
+  "Wall Cabinet": "kitchens/kitchenCabinetUpper.glb",
+  "TV Unit": "cabinets/cabinetTelevision.glb"
 };
+
+export function withModel(type, item) {
+  return {
+    ...item,
+    model: MODEL_MAP[type] || null
+  };
+}
