@@ -208,6 +208,9 @@ export default function CreateDesign() {
   const [roomLength, setRoomLength] = useState(5);
   const [roomHeight, setRoomHeight] = useState(3);
 
+  const [wallColor, setWallColor] = useState("#dbeafe");
+  const [floorColor, setFloorColor] = useState("#efe7da");
+
   const [placedItems, setPlacedItems] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
 
@@ -238,6 +241,8 @@ export default function CreateDesign() {
       width: Number(roomWidth),
       length: Number(roomLength),
       height: Number(roomHeight),
+      wallColor,
+      floorColor,
       furniture: items.map((item) => ({
         ...item,
         width: Number(item.width),
@@ -371,7 +376,7 @@ export default function CreateDesign() {
   useEffect(() => {
     saveDraft();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomName, roomWidth, roomLength, roomHeight]);
+  }, [roomName, roomWidth, roomLength, roomHeight, wallColor, floorColor]);
 
   return (
     <div
@@ -879,6 +884,28 @@ export default function CreateDesign() {
               Inspector
             </div>
 
+            <div style={{ display: "grid", gap: "10px", marginBottom: "14px" }}>
+              <div>
+                <label style={labelStyle}>Wall Color</label>
+                <input
+                  type="color"
+                  value={wallColor}
+                  onChange={(e) => setWallColor(e.target.value)}
+                  style={colorInputStyle}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Floor Color</label>
+                <input
+                  type="color"
+                  value={floorColor}
+                  onChange={(e) => setFloorColor(e.target.value)}
+                  style={colorInputStyle}
+                />
+              </div>
+            </div>
+
             {!selectedItem ? (
               <div style={emptyCardStyle}>
                 Select an item from the canvas to edit it.
@@ -988,6 +1015,20 @@ export default function CreateDesign() {
                   />
                 </div>
 
+                <div>
+                  <label style={labelStyle}>Item Color</label>
+                  <input
+                    type="color"
+                    value={selectedItem.color || "#60a5fa"}
+                    onChange={(e) =>
+                      updatePlacedItem(selectedItem.id, {
+                        color: e.target.value
+                      })
+                    }
+                    style={colorInputStyle}
+                  />
+                </div>
+
                 <button style={dangerButtonStyle} onClick={handleDeleteSelected}>
                   Remove Selected
                 </button>
@@ -1058,6 +1099,17 @@ const labelStyle = {
   fontWeight: 700,
   color: "#475569",
   marginBottom: "6px"
+};
+
+const colorInputStyle = {
+  width: "100%",
+  height: "44px",
+  borderRadius: "12px",
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  cursor: "pointer",
+  padding: "4px",
+  boxSizing: "border-box"
 };
 
 const primaryButtonStyle = {
