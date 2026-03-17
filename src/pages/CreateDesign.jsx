@@ -2,12 +2,13 @@ import * as THREE from "three";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Environment, OrbitControls, useGLTF } from "@react-three/drei";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { FLOOR_PRESETS } from "../data/floorPresets";
 import { withModel } from "../data/modelMap";
 import { supabase } from "../lib/supabase";
 
 const STORAGE_KEY = "draftDesign";
+const SAVED_DESIGNS_KEY = "savedDesigns";
 
 const LIBRARY_SECTIONS = [
   { key: "Kitchens", label: "Kitchens", icon: "🍽️" },
@@ -354,6 +355,7 @@ function MiniModelCard({ item, height = 56 }) {
 
 export default function CreateDesign() {
   const navigate = useNavigate();
+  const location = useLocation();
   const canvasRef = useRef(null);
   const hydratedRef = useRef(false);
 
@@ -396,14 +398,18 @@ export default function CreateDesign() {
 
   function buildDraft(items = placedItems, overrides = {}) {
     return {
+      id: overrides.id ?? null,
       name: overrides.name ?? roomName,
-      roomType: "Custom",
+      roomType: overrides.roomType ?? "Custom",
       width: Number(overrides.width ?? roomWidth),
       length: Number(overrides.length ?? roomLength),
       height: Number(overrides.height ?? roomHeight),
       wallColor: overrides.wallColor ?? wallColor,
       floorColor: overrides.floorColor ?? floorColor,
       floorTexture: overrides.floorTexture ?? floorPresetId,
+      createdAt: overrides.createdAt ?? null,
+      updatedAt: overrides.updatedAt ?? null,
+      savedAt: overrides.savedAt ?? null,
       furniture: items.map((item) => ({
         ...item,
         width: Number(item.width),
@@ -420,6 +426,30 @@ export default function CreateDesign() {
   function saveDraft(items = placedItems, overrides = {}) {
     if (!hydratedRef.current) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(buildDraft(items, overrides)));
+  }
+
+  function handleSaveDesign() {
+    const existing = safeParse(localStorage.getItem(SAVED_DESIGNS_KEY), []);
+    const list = Array.isArray(existing) ? existing : [];
+    const draftSource = safeParse(localStorage.getItem(STORAGE_KEY), null);
+    const existingId = location.state?.design?.id || draftSource?.id || null;
+    const existingCreatedAt = location.state?.design?.createdAt || draftSource?.createdAt || null;
+    const now = new Date().toISOString();
+
+    const designToSave = buildDraft(placedItems, {
+      id: existingId || uid("design"),
+      createdAt: existingCreatedAt || now,
+      updatedAt: now,
+      savedAt: now
+    });
+
+    const nextList = list.some((item) => String(item?.id) === String(designToSave.id))
+      ? list.map((item) => (String(item?.id) === String(designToSave.id) ? { ...item, ...designToSave } : item))
+      : [designToSave, ...list];
+
+    localStorage.setItem(SAVED_DESIGNS_KEY, JSON.stringify(nextList));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(designToSave));
+    window.alert(`Design saved successfully: ${designToSave.name}`);
   }
 
   function addItemAtPosition(item, x, y) {
@@ -458,8 +488,9 @@ export default function CreateDesign() {
   }
 
   function handlePreview3D() {
-    saveDraft();
-    navigate("/preview-3d");
+    const draft = buildDraft();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+    navigate("/preview-3d", { state: { design: draft } });
   }
 
   function handleLibraryDragStart(event, item) {
@@ -536,13 +567,11 @@ export default function CreateDesign() {
   }, []);
 
   useEffect(() => {
+    const draftFromState = location.state?.design;
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      hydratedRef.current = true;
-      return;
-    }
+    const storedDraft = raw ? safeParse(raw, null) : null;
+    const draft = draftFromState && typeof draftFromState === "object" ? draftFromState : storedDraft;
 
-    const draft = safeParse(raw, null);
     if (!draft) {
       hydratedRef.current = true;
       return;
@@ -555,19 +584,23 @@ export default function CreateDesign() {
     setWallColor(draft.wallColor || "#dbeafe");
     setFloorColor(draft.floorColor || "#efe7da");
     setFloorPresetId(draft.floorTexture || "tiles-beige");
+    setPlacedItems(Array.isArray(draft.furniture) ? draft.furniture.map(normalizeItem) : []);
 
-    if (Array.isArray(draft.furniture)) {
-      setPlacedItems(draft.furniture.map(normalizeItem));
-    }
-
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
     hydratedRef.current = true;
-  }, []);
+  }, [location.state]);
 
   useEffect(() => {
     if (!hydratedRef.current) return;
     saveDraft();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomName, roomWidth, roomLength, roomHeight, wallColor, floorColor, floorPresetId]);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    saveDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placedItems]);
 
   return (
     <div
@@ -1022,7 +1055,7 @@ export default function CreateDesign() {
                   <button style={secondaryButtonStyle} onClick={() => navigate("/dashboard")}>
                     Back
                   </button>
-                  <button style={secondaryButtonStyle} onClick={() => saveDraft()}>
+                  <button style={secondaryButtonStyle} onClick={handleSaveDesign}>
                     Save Design
                   </button>
                   <button style={primaryButtonStyle} onClick={handlePreview3D}>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import ThreeDRoomViewer from "../components/room/ThreeDRoomViewer";
 
 const STORAGE_KEY = "draftDesign";
@@ -65,16 +65,25 @@ function ModeButton({ active, onClick, label }) {
 
 export default function Preview3D() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [design, setDesign] = useState(null);
   const [wallMode, setWallMode] = useState("solid");
   const [themeMode, setThemeMode] = useState("light");
 
   useEffect(() => {
-    setDesign(readDraft());
+    const draftFromState = location.state?.design;
+    const nextDesign = draftFromState && typeof draftFromState === "object" ? draftFromState : readDraft();
+
+    if (nextDesign) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextDesign));
+    }
+
+    setDesign(nextDesign);
+
     const onFocus = () => setDesign(readDraft());
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, []);
+  }, [location.state]);
 
   if (!design) {
     return (
@@ -152,7 +161,7 @@ export default function Preview3D() {
 
           <div style={{ display: "grid", gap: "10px" }}>
             <button
-              onClick={() => navigate("/create-design")}
+              onClick={() => navigate("/create-design", { state: { design } })}
               style={{
                 border: "1px solid #cbd5e1",
                 background: "#ffffff",

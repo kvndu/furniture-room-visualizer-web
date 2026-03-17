@@ -331,13 +331,19 @@ export default function Dashboard() {
     localStorage.setItem(
       DRAFT_KEY,
       JSON.stringify({
+        id: design.id,
         name: design.name,
         roomType: design.roomType,
         width: design.width,
         length: design.length,
         height: design.height,
+        wallColor: design.wallColor,
+        floorColor: design.floorColor,
+        floorTexture: design.floorTexture,
         furniture: design.furniture || [],
-        createdAt: design.createdAt || new Date().toISOString()
+        createdAt: design.createdAt || design.savedAt || new Date().toISOString(),
+        updatedAt: design.updatedAt || design.savedAt || design.createdAt || null,
+        savedAt: design.savedAt || design.updatedAt || design.createdAt || null
       })
     );
     navigate("/create-design");
