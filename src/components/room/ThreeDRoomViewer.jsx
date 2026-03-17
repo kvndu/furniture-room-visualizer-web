@@ -299,17 +299,19 @@ export default function ThreeDRoomViewer({
       >
         <RoomScene design={design} wallMode={wallMode} themeMode={themeMode} />
         <OrbitControls
-          enablePan={false}
-          enableZoom
-          enableRotate
-          minDistance={7}
-          maxDistance={20}
-          minPolarAngle={Math.PI / 4.5}
-          maxPolarAngle={Math.PI / 2.15}
-          minAzimuthAngle={-Math.PI / 3.2}
-          maxAzimuthAngle={Math.PI / 3.2}
-          target={[0, 0.9, 0]}
-        />
+        enablePan={false}
+        enableZoom
+        enableRotate
+        enableDamping
+        dampingFactor={0.05}
+        minDistance={7}
+        maxDistance={20}
+        minPolarAngle={0}
+        maxPolarAngle={Math.PI}
+        minAzimuthAngle={-Infinity}
+        maxAzimuthAngle={Infinity}
+        target={[0, 0.9, 0]}
+      />
       </Canvas>
     </div>
   );
