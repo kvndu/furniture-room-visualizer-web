@@ -1,49 +1,75 @@
-const AUTH_KEY = "frv_auth_user";
+export const AUTH_STORAGE_KEY = "authUser";
 
-export function validateCredentials(email, password) {
-  if (!email || !password) {
-    return { success: false, message: "Email and password are required." };
+export const DEMO_USER = {
+  email: "designer@demo.com",
+  password: "123456",
+  name: "Demo Designer"
+};
+
+function safeParse(value, fallback = null) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
   }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return { success: false, message: "Please enter a valid email address." };
-  }
-
-  if (String(password).trim().length < 4) {
-    return { success: false, message: "Password must contain at least 4 characters." };
-  }
-
-  return { success: true };
 }
 
-export function loginUser(email, password) {
-  const validation = validateCredentials(email, password);
-  if (!validation.success) {
-    return validation;
-  }
-
-  const user = {
-    name: String(email).split("@")[0].replace(/[-_.]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-    email,
-    loggedInAt: new Date().toISOString()
+export function getDemoUser() {
+  return {
+    email: DEMO_USER.email,
+    password: DEMO_USER.password,
+    name: DEMO_USER.name
   };
+}
 
-  localStorage.setItem(AUTH_KEY, JSON.stringify(user));
-  return { success: true, user };
+export function getAuthUser() {
+  return safeParse(localStorage.getItem(AUTH_STORAGE_KEY), null);
 }
 
 export function restoreUserSession() {
-  try {
-    const raw = localStorage.getItem(AUTH_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch (error) {
-    console.error("Failed to restore session:", error);
-    localStorage.removeItem(AUTH_KEY);
-    return null;
+  return getAuthUser();
+}
+
+export function isAuthenticated() {
+  return !!getAuthUser();
+}
+
+export function loginUser(email, password) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const normalizedPassword = String(password || "").trim();
+
+  if (
+    normalizedEmail === DEMO_USER.email.toLowerCase() &&
+    normalizedPassword === DEMO_USER.password
+  ) {
+    const sessionUser = {
+      email: DEMO_USER.email,
+      name: DEMO_USER.name,
+      loggedInAt: new Date().toISOString()
+    };
+
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessionUser));
+
+    return {
+      success: true,
+      user: sessionUser
+    };
   }
+
+  return {
+    success: false,
+    message: "Invalid email or password"
+  };
 }
 
 export function logoutUser() {
-  localStorage.removeItem(AUTH_KEY);
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+export function requireAuth() {
+  const user = getAuthUser();
+  if (!user) {
+    return null;
+  }
+  return user;
 }

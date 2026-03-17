@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import Navbar from "../components/common/Navbar";
 import ThreeDRoomViewer from "../components/room/ThreeDRoomViewer";
 
 const STORAGE_KEY = "draftDesign";
@@ -26,22 +27,14 @@ function InfoCard({ label, value }) {
         marginBottom: "10px"
       }}
     >
-      <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px", fontWeight: 700 }}>
-        {label}
-      </div>
-      <div style={{ fontSize: "16px", color: "#0f172a", fontWeight: 800 }}>
-        {value}
-      </div>
+      <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px", fontWeight: 700 }}>{label}</div>
+      <div style={{ fontSize: "16px", color: "#0f172a", fontWeight: 800 }}>{value}</div>
     </div>
   );
 }
 
 function SectionTitle({ title }) {
-  return (
-    <div style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a", marginBottom: "8px" }}>
-      {title}
-    </div>
-  );
+  return <div style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a", marginBottom: "8px" }}>{title}</div>;
 }
 
 function ModeButton({ active, onClick, label }) {
@@ -87,8 +80,23 @@ export default function Preview3D() {
 
   if (!design) {
     return (
-      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#f1f5f9" }}>
-        <button onClick={() => navigate("/create-design")}>Go to Create Design</button>
+      <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
+        <Navbar subtitle="3D Preview Workspace" showPreview={false} />
+        <div style={{ minHeight: "calc(100vh - 84px)", display: "grid", placeItems: "center" }}>
+          <button
+            onClick={() => navigate("/create-design")}
+            style={{
+              border: "1px solid #cbd5e1",
+              background: "#ffffff",
+              color: "#0f172a",
+              padding: "12px 16px",
+              borderRadius: "14px",
+              fontWeight: 800
+            }}
+          >
+            Go to Create Design
+          </button>
+        </div>
       </div>
     );
   }
@@ -100,112 +108,114 @@ export default function Preview3D() {
   const furnitureCount = Array.isArray(design.furniture) ? design.furniture.length : 0;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f1f5f9", padding: "12px", boxSizing: "border-box" }}>
-      <div style={{ width: "100%", display: "grid", gridTemplateColumns: "260px 1fr", gap: "12px" }}>
-        <aside
-          style={{
-            background: "rgba(255,255,255,0.94)",
-            border: "1px solid #dbe2ea",
-            borderRadius: "24px",
-            padding: "14px",
-            minHeight: "calc(100vh - 24px)"
-          }}
-        >
-          <div
+    <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
+      <Navbar subtitle="3D Preview Workspace" showPreview={false} />
+
+      <div style={{ padding: "12px", boxSizing: "border-box" }}>
+        <div style={{ width: "100%", display: "grid", gridTemplateColumns: "260px 1fr", gap: "12px" }}>
+          <aside
             style={{
-              borderRadius: "22px",
-              padding: "16px",
-              color: "#ffffff",
-              background: "linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)",
-              marginBottom: "14px"
-            }}
-          >
-            <div style={{ fontSize: "12px", opacity: 0.84, marginBottom: "6px" }}>3D Preview Workspace</div>
-            <div style={{ fontSize: "20px", fontWeight: 800 }}>{roomName}</div>
-            <div style={{ fontSize: "14px", marginTop: "6px", opacity: 0.9 }}>Explore your room in 3D</div>
-          </div>
-
-          <InfoCard label="Room" value={roomName} />
-          <InfoCard label="Size" value={`${roomWidth}m × ${roomLength}m × ${roomHeight}m`} />
-          <InfoCard label="Furniture" value={`${furnitureCount}`} />
-
-          <SectionTitle title="Wall Style" />
-          <div style={{ display: "grid", gap: "8px", marginBottom: "14px" }}>
-            <ModeButton active={wallMode === "transparent"} onClick={() => setWallMode("transparent")} label="Transparent" />
-            <ModeButton active={wallMode === "solid"} onClick={() => setWallMode("solid")} label="Solid" />
-            <ModeButton active={wallMode === "hidden"} onClick={() => setWallMode("hidden")} label="Hidden Walls" />
-          </div>
-
-          <SectionTitle title="Canvas Theme" />
-          <div style={{ display: "grid", gap: "8px", marginBottom: "14px" }}>
-            <ModeButton active={themeMode === "light"} onClick={() => setThemeMode("light")} label="Light Canvas" />
-            <ModeButton active={themeMode === "dark"} onClick={() => setThemeMode("dark")} label="Dark Canvas" />
-          </div>
-
-          <div
-            style={{
+              background: "rgba(255,255,255,0.94)",
               border: "1px solid #dbe2ea",
-              background: "#f8fafc",
-              borderRadius: "18px",
-              padding: "12px",
-              marginBottom: "16px"
+              borderRadius: "24px",
+              padding: "14px",
+              minHeight: "calc(100vh - 108px)"
             }}
           >
-            <div style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a", marginBottom: "8px" }}>
-              Tips
-            </div>
-            <div style={{ color: "#475569", fontSize: "14px", lineHeight: 1.55 }}>
-              Solid walls + Light Canvas is best. Models and selected floor now load from the same draft.
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gap: "10px" }}>
-            <button
-              onClick={() => navigate("/create-design", { state: { design } })}
+            <div
               style={{
-                border: "1px solid #cbd5e1",
-                background: "#ffffff",
-                color: "#0f172a",
-                padding: "12px 16px",
-                borderRadius: "14px",
-                fontWeight: 800,
-                cursor: "pointer"
+                borderRadius: "22px",
+                padding: "16px",
+                color: "#ffffff",
+                background: "linear-gradient(135deg, #0f172a 0%, #2563eb 100%)",
+                marginBottom: "14px"
               }}
             >
-              Back to Editor
-            </button>
+              <div style={{ fontSize: "12px", opacity: 0.84, marginBottom: "6px" }}>3D Preview Workspace</div>
+              <div style={{ fontSize: "20px", fontWeight: 800 }}>{roomName}</div>
+              <div style={{ fontSize: "14px", marginTop: "6px", opacity: 0.9 }}>Explore your room in 3D</div>
+            </div>
 
-            <button
-              onClick={() => {
-                localStorage.removeItem(STORAGE_KEY);
-                setDesign(null);
-              }}
+            <InfoCard label="Room" value={roomName} />
+            <InfoCard label="Size" value={`${roomWidth}m × ${roomLength}m × ${roomHeight}m`} />
+            <InfoCard label="Furniture" value={`${furnitureCount}`} />
+
+            <SectionTitle title="Wall Style" />
+            <div style={{ display: "grid", gap: "8px", marginBottom: "14px" }}>
+              <ModeButton active={wallMode === "transparent"} onClick={() => setWallMode("transparent")} label="Transparent" />
+              <ModeButton active={wallMode === "solid"} onClick={() => setWallMode("solid")} label="Solid" />
+              <ModeButton active={wallMode === "hidden"} onClick={() => setWallMode("hidden")} label="Hidden Walls" />
+            </div>
+
+            <SectionTitle title="Canvas Theme" />
+            <div style={{ display: "grid", gap: "8px", marginBottom: "14px" }}>
+              <ModeButton active={themeMode === "light"} onClick={() => setThemeMode("light")} label="Light Canvas" />
+              <ModeButton active={themeMode === "dark"} onClick={() => setThemeMode("dark")} label="Dark Canvas" />
+            </div>
+
+            <div
               style={{
-                border: "1px solid #fecaca",
-                background: "#fef2f2",
-                color: "#b91c1c",
-                padding: "12px 16px",
-                borderRadius: "14px",
-                fontWeight: 800,
-                cursor: "pointer"
+                border: "1px solid #dbe2ea",
+                background: "#f8fafc",
+                borderRadius: "18px",
+                padding: "12px",
+                marginBottom: "16px"
               }}
             >
-              Clear Preview Data
-            </button>
-          </div>
-        </aside>
+              <div style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a", marginBottom: "8px" }}>Tips</div>
+              <div style={{ color: "#475569", fontSize: "14px", lineHeight: 1.55 }}>
+                Solid walls + Light Canvas is best. Models and selected floor now load from the same draft.
+              </div>
+            </div>
 
-        <main
-          style={{
-            background: "rgba(255,255,255,0.94)",
-            border: "1px solid #dbe2ea",
-            borderRadius: "24px",
-            padding: "10px",
-            minHeight: "calc(100vh - 24px)"
-          }}
-        >
-          <ThreeDRoomViewer design={design} wallMode={wallMode} themeMode={themeMode} />
-        </main>
+            <div style={{ display: "grid", gap: "10px" }}>
+              <button
+                onClick={() => navigate("/create-design", { state: { design } })}
+                style={{
+                  border: "1px solid #cbd5e1",
+                  background: "#ffffff",
+                  color: "#0f172a",
+                  padding: "12px 16px",
+                  borderRadius: "14px",
+                  fontWeight: 800,
+                  cursor: "pointer"
+                }}
+              >
+                Back to Editor
+              </button>
+
+              <button
+                onClick={() => {
+                  localStorage.removeItem(STORAGE_KEY);
+                  setDesign(null);
+                }}
+                style={{
+                  border: "1px solid #fecaca",
+                  background: "#fef2f2",
+                  color: "#b91c1c",
+                  padding: "12px 16px",
+                  borderRadius: "14px",
+                  fontWeight: 800,
+                  cursor: "pointer"
+                }}
+              >
+                Clear Preview Data
+              </button>
+            </div>
+          </aside>
+
+          <main
+            style={{
+              background: "rgba(255,255,255,0.94)",
+              border: "1px solid #dbe2ea",
+              borderRadius: "24px",
+              padding: "10px",
+              minHeight: "calc(100vh - 108px)"
+            }}
+          >
+            <ThreeDRoomViewer design={design} wallMode={wallMode} themeMode={themeMode} />
+          </main>
+        </div>
       </div>
     </div>
   );

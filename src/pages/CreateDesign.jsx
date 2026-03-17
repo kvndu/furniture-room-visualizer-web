@@ -3,6 +3,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Environment, OrbitControls, useGLTF } from "@react-three/drei";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import Navbar from "../components/common/Navbar";
 import { FLOOR_PRESETS } from "../data/floorPresets";
 import { withModel } from "../data/modelMap";
 import { supabase } from "../lib/supabase";
@@ -353,11 +354,41 @@ function MiniModelCard({ item, height = 56 }) {
   );
 }
 
+function Toast({ toast }) {
+  if (!toast) return null;
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: "86px",
+        right: "18px",
+        zIndex: 100,
+        padding: "12px 14px",
+        borderRadius: "14px",
+        border: `1px solid ${toast.type === "error" ? "#fecaca" : "#bfdbfe"}`,
+        background: toast.type === "error" ? "#fef2f2" : "#eff6ff",
+        color: toast.type === "error" ? "#991b1b" : "#1d4ed8",
+        fontWeight: 800,
+        boxShadow: "0 18px 32px rgba(15,23,42,0.12)"
+      }}
+    >
+      {toast.message}
+    </div>
+  );
+}
+
 export default function CreateDesign() {
   const navigate = useNavigate();
   const location = useLocation();
   const canvasRef = useRef(null);
   const hydratedRef = useRef(false);
+  const saveTimerRef = useRef(null);
+
+  const [editingMeta, setEditingMeta] = useState({ id: null, createdAt: null });
+  const [history, setHistory] = useState([]);
+  const [future, setFuture] = useState([]);
+  const [toast, setToast] = useState(null);
+  const [pendingRestoreDraft, setPendingRestoreDraft] = useState(null);
 
   const [leftTab, setLeftTab] = useState("Library");
   const [activeSection, setActiveSection] = useState("Kitchens");
@@ -396,9 +427,48 @@ export default function CreateDesign() {
   const selectedItem = placedItems.find((item) => item.id === selectedId) || null;
   const selectedFloor = FLOOR_PRESETS.find((floor) => floor.id === floorPresetId) || FLOOR_PRESETS[0];
 
+  const isEditMode = Boolean(editingMeta.id);
+
+  function showToast(message, type = "success") {
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    setToast({ message, type });
+    saveTimerRef.current = window.setTimeout(() => setToast(null), 2200);
+  }
+
+  function captureEditorState(items = placedItems) {
+    return {
+      name: roomName,
+      width: roomWidth,
+      length: roomLength,
+      height: roomHeight,
+      wallColor,
+      floorColor,
+      floorTexture: floorPresetId,
+      furniture: items.map((item) => ({ ...item }))
+    };
+  }
+
+  function restoreEditorState(snapshot) {
+    if (!snapshot) return;
+    setRoomName(snapshot.name || "My Dream Room");
+    setRoomWidth(Number(snapshot.width) || 6);
+    setRoomLength(Number(snapshot.length) || 5);
+    setRoomHeight(Number(snapshot.height) || 3);
+    setWallColor(snapshot.wallColor || "#dbeafe");
+    setFloorColor(snapshot.floorColor || "#efe7da");
+    setFloorPresetId(snapshot.floorTexture || "tiles-beige");
+    setPlacedItems(Array.isArray(snapshot.furniture) ? snapshot.furniture.map(normalizeItem) : []);
+    setSelectedId(null);
+  }
+
+  function pushHistory(snapshot = captureEditorState()) {
+    setHistory((prev) => [...prev.slice(-19), JSON.parse(JSON.stringify(snapshot))]);
+    setFuture([]);
+  }
+
   function buildDraft(items = placedItems, overrides = {}) {
     return {
-      id: overrides.id ?? null,
+      id: overrides.id ?? editingMeta.id ?? null,
       name: overrides.name ?? roomName,
       roomType: overrides.roomType ?? "Custom",
       width: Number(overrides.width ?? roomWidth),
@@ -407,7 +477,7 @@ export default function CreateDesign() {
       wallColor: overrides.wallColor ?? wallColor,
       floorColor: overrides.floorColor ?? floorColor,
       floorTexture: overrides.floorTexture ?? floorPresetId,
-      createdAt: overrides.createdAt ?? null,
+      createdAt: overrides.createdAt ?? editingMeta.createdAt ?? null,
       updatedAt: overrides.updatedAt ?? null,
       savedAt: overrides.savedAt ?? null,
       furniture: items.map((item) => ({
@@ -425,34 +495,44 @@ export default function CreateDesign() {
 
   function saveDraft(items = placedItems, overrides = {}) {
     if (!hydratedRef.current) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(buildDraft(items, overrides)));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(
+        buildDraft(items, {
+          id: editingMeta.id,
+          createdAt: editingMeta.createdAt,
+          updatedAt: new Date().toISOString(),
+          ...overrides
+        })
+      )
+    );
   }
 
   function handleSaveDesign() {
     const existing = safeParse(localStorage.getItem(SAVED_DESIGNS_KEY), []);
     const list = Array.isArray(existing) ? existing : [];
-    const draftSource = safeParse(localStorage.getItem(STORAGE_KEY), null);
-    const existingId = location.state?.design?.id || draftSource?.id || null;
-    const existingCreatedAt = location.state?.design?.createdAt || draftSource?.createdAt || null;
     const now = new Date().toISOString();
 
     const designToSave = buildDraft(placedItems, {
-      id: existingId || uid("design"),
-      createdAt: existingCreatedAt || now,
+      id: editingMeta.id || uid("design"),
+      createdAt: editingMeta.createdAt || now,
       updatedAt: now,
       savedAt: now
     });
 
-    const nextList = list.some((item) => String(item?.id) === String(designToSave.id))
+    const alreadyExists = list.some((item) => String(item?.id) === String(designToSave.id));
+    const nextList = alreadyExists
       ? list.map((item) => (String(item?.id) === String(designToSave.id) ? { ...item, ...designToSave } : item))
       : [designToSave, ...list];
 
     localStorage.setItem(SAVED_DESIGNS_KEY, JSON.stringify(nextList));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(designToSave));
-    window.alert(`Design saved successfully: ${designToSave.name}`);
+    setEditingMeta({ id: designToSave.id, createdAt: designToSave.createdAt });
+    showToast(alreadyExists ? `Design updated: ${designToSave.name}` : `Design saved: ${designToSave.name}`);
   }
 
   function addItemAtPosition(item, x, y) {
+    pushHistory();
     const newItem = normalizeItem({
       ...item,
       id: uid("placed"),
@@ -471,7 +551,8 @@ export default function CreateDesign() {
     addItemAtPosition(item, 0.6, 0.6);
   }
 
-  function updatePlacedItem(id, updates) {
+  function updatePlacedItem(id, updates, trackHistory = false) {
+    if (trackHistory) pushHistory();
     const next = placedItems.map((item) =>
       item.id === id ? { ...item, ...updates } : item
     );
@@ -480,7 +561,11 @@ export default function CreateDesign() {
   }
 
   function handleDeleteSelected() {
-    if (!selectedId) return;
+    if (!selectedId) {
+      showToast("Please select an item first", "error");
+      return;
+    }
+    pushHistory();
     const next = placedItems.filter((item) => item.id !== selectedId);
     setPlacedItems(next);
     setSelectedId(null);
@@ -488,7 +573,11 @@ export default function CreateDesign() {
   }
 
   function handlePreview3D() {
-    const draft = buildDraft();
+    const draft = buildDraft(placedItems, {
+      id: editingMeta.id,
+      createdAt: editingMeta.createdAt,
+      updatedAt: new Date().toISOString()
+    });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
     navigate("/preview-3d", { state: { design: draft } });
   }
@@ -551,14 +640,68 @@ export default function CreateDesign() {
     const target = placedItems.find((item) => item.id === draggingId);
     if (!target) return;
 
-    updatePlacedItem(draggingId, {
-      x: Number(clamp(rawX, 0, Math.max(0, roomWidth - target.width)).toFixed(2)),
-      y: Number(clamp(rawY, 0, Math.max(0, roomLength - target.depth)).toFixed(2))
-    });
+    updatePlacedItem(
+      draggingId,
+      {
+        x: Number(clamp(rawX, 0, Math.max(0, roomWidth - target.width)).toFixed(2)),
+        y: Number(clamp(rawY, 0, Math.max(0, roomLength - target.depth)).toFixed(2))
+      },
+      false
+    );
   }
 
   function onCanvasMouseUp() {
     setDraggingId(null);
+  }
+
+  function handleUndo() {
+    if (!history.length) return;
+    const previous = history[history.length - 1];
+    setFuture((prev) => [captureEditorState(), ...prev]);
+    restoreEditorState(previous);
+    setHistory((prev) => prev.slice(0, -1));
+    showToast("Change undone");
+  }
+
+  function handleRedo() {
+    if (!future.length) return;
+    const nextSnapshot = future[0];
+    setHistory((prev) => [...prev.slice(-19), captureEditorState()]);
+    restoreEditorState(nextSnapshot);
+    setFuture((prev) => prev.slice(1));
+    showToast("Change restored");
+  }
+
+  function hydrateFromDraft(draft) {
+    setRoomName(draft.name || "My Dream Room");
+    setRoomWidth(Number(draft.width) || 6);
+    setRoomLength(Number(draft.length) || 5);
+    setRoomHeight(Number(draft.height) || 3);
+    setWallColor(draft.wallColor || "#dbeafe");
+    setFloorColor(draft.floorColor || "#efe7da");
+    setFloorPresetId(draft.floorTexture || "tiles-beige");
+    setPlacedItems(Array.isArray(draft.furniture) ? draft.furniture.map(normalizeItem) : []);
+    setSelectedId(null);
+    setEditingMeta({ id: draft.id || null, createdAt: draft.createdAt || null });
+    setHistory([]);
+    setFuture([]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+  }
+
+  function handleRestoreDraft() {
+    if (!pendingRestoreDraft) return;
+    hydrateFromDraft(pendingRestoreDraft);
+    setPendingRestoreDraft(null);
+    showToast("Previous draft restored");
+  }
+
+  function handleDiscardDraft() {
+    localStorage.removeItem(STORAGE_KEY);
+    setPendingRestoreDraft(null);
+    setEditingMeta({ id: null, createdAt: null });
+    setPlacedItems([]);
+    setSelectedId(null);
+    showToast("Draft cleared");
   }
 
   useEffect(() => {
@@ -570,23 +713,20 @@ export default function CreateDesign() {
     const draftFromState = location.state?.design;
     const raw = localStorage.getItem(STORAGE_KEY);
     const storedDraft = raw ? safeParse(raw, null) : null;
-    const draft = draftFromState && typeof draftFromState === "object" ? draftFromState : storedDraft;
 
-    if (!draft) {
+    if (draftFromState && typeof draftFromState === "object") {
+      hydrateFromDraft(draftFromState);
+      setPendingRestoreDraft(null);
       hydratedRef.current = true;
       return;
     }
 
-    setRoomName(draft.name || "My Dream Room");
-    setRoomWidth(Number(draft.width) || 6);
-    setRoomLength(Number(draft.length) || 5);
-    setRoomHeight(Number(draft.height) || 3);
-    setWallColor(draft.wallColor || "#dbeafe");
-    setFloorColor(draft.floorColor || "#efe7da");
-    setFloorPresetId(draft.floorTexture || "tiles-beige");
-    setPlacedItems(Array.isArray(draft.furniture) ? draft.furniture.map(normalizeItem) : []);
+    if (storedDraft && typeof storedDraft === "object") {
+      setPendingRestoreDraft(storedDraft);
+      hydratedRef.current = true;
+      return;
+    }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
     hydratedRef.current = true;
   }, [location.state]);
 
@@ -610,59 +750,33 @@ export default function CreateDesign() {
         overflowX: "hidden"
       }}
     >
-      <header
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 40,
-          background: "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "0 10px 24px rgba(15, 23, 42, 0.12)"
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            padding: "14px 18px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "16px",
-            boxSizing: "border-box"
-          }}
-        >
-          <div>
-            <div style={{ color: "#ffffff", fontSize: "17px", fontWeight: 800 }}>
-              Furniture Room Visualizer
-            </div>
-            <div style={{ color: "rgba(255,255,255,0.78)", fontSize: "12px", marginTop: "2px" }}>
-              2D Design Workspace
-            </div>
-          </div>
+      <Navbar subtitle={isEditMode ? "Edit Saved Design" : "2D Design Workspace"} onPreview={handlePreview3D} />
 
-          <nav style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <TopNavItem to="/dashboard">Dashboard</TopNavItem>
-            <TopNavItem to="/create-design" active>Create 2D</TopNavItem>
-            <TopNavItem to="/portfolio">Portfolio</TopNavItem>
-            <button
-              onClick={handlePreview3D}
-              style={{
-                border: "1px solid rgba(255,255,255,0.18)",
-                background: "rgba(255,255,255,0.1)",
-                color: "#ffffff",
-                padding: "10px 14px",
-                borderRadius: "12px",
-                fontWeight: 700,
-                cursor: "pointer"
-              }}
-            >
-              Preview 3D
-            </button>
-          </nav>
-        </div>
-      </header>
+      <Toast toast={toast} />
 
       <div style={{ padding: "10px", width: "100%", boxSizing: "border-box" }}>
+        {pendingRestoreDraft && !location.state?.design ? (
+          <div
+            style={{
+              marginBottom: "10px",
+              background: "#eff6ff",
+              border: "1px solid #bfdbfe",
+              borderRadius: "18px",
+              padding: "12px 14px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "10px",
+              flexWrap: "wrap"
+            }}
+          >
+            <div style={{ color: "#1e3a8a", fontWeight: 700 }}>A previous draft was found. Restore it?</div>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button style={secondaryButtonStyle} onClick={handleDiscardDraft}>Start Fresh</button>
+              <button style={primaryButtonStyle} onClick={handleRestoreDraft}>Restore Draft</button>
+            </div>
+          </div>
+        ) : null}
         <div
           style={{
             width: "100%",
@@ -925,6 +1039,7 @@ export default function CreateDesign() {
                     key={floor.id}
                     type="button"
                     onClick={() => {
+                      pushHistory();
                       setFloorPresetId(floor.id);
                       saveDraft(placedItems, { floorTexture: floor.id });
                     }}
@@ -1047,16 +1162,22 @@ export default function CreateDesign() {
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr 1fr",
+                    gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
                     gap: "10px",
                     marginBottom: "10px"
                   }}
                 >
+                  <button style={secondaryButtonStyle} onClick={handleUndo} disabled={!history.length}>
+                    Undo
+                  </button>
+                  <button style={secondaryButtonStyle} onClick={handleRedo} disabled={!future.length}>
+                    Redo
+                  </button>
                   <button style={secondaryButtonStyle} onClick={() => navigate("/dashboard")}>
                     Back
                   </button>
                   <button style={secondaryButtonStyle} onClick={handleSaveDesign}>
-                    Save Design
+                    {isEditMode ? "Update Design" : "Save Design"}
                   </button>
                   <button style={primaryButtonStyle} onClick={handlePreview3D}>
                     Preview 3D

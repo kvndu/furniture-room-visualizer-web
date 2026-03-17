@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -10,6 +12,12 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -23,14 +31,15 @@ export default function Login() {
     try {
       setLoading(true);
 
-      // TODO:
-      // me thanata oyage real auth logic eka danna
-      // example:
-      // await supabase.auth.signInWithPassword({ email, password })
+      const result = login(email, password);
+      if (!result.success) {
+        setError(result.message || "Login failed. Please try again.");
+        return;
+      }
 
       setTimeout(() => {
         navigate("/dashboard");
-      }, 600);
+      }, 450);
     } catch (err) {
       setError(err?.message || "Login failed. Please try again.");
     } finally {
