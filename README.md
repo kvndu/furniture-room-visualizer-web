@@ -1,93 +1,93 @@
-# 🛋️ Furniture Room Visualizer
+# 🛋️ Furniture Designer (2D + 3D Room Planner)
 
-Furniture Room Visualizer is a web-based interior design planning tool that allows users to create, visualize, and manage room layouts with interactive furniture placement.  
-The system enables users to design rooms such as living rooms, bedrooms, kitchens, offices, and more by adding furniture elements and customizing layouts.
-
-This project was developed as a **coursework project** for demonstrating modern web development techniques including **React, UI design, and interactive visualization**.
+An interactive web-based application that allows users to design and visualize room layouts in both 2D and 3D. This system helps furniture designers and customers create, modify, and preview room arrangements in real-time.
 
 ---
 
-# 📌 Features
+## 🚀 Features
 
-### 🏠 Room Design
-- Create different types of rooms:
-  - Living Room
-  - Bedroom
-  - Kitchen
-  - Office
-  - Bathroom
-  - Dining Room
-  - Kids Room
-  - Balcony
-
-### 🪑 Furniture Library
-- Room-based furniture categories
-- Dynamic item selection
-- Add furniture to room preview
-
-### 🎨 Customization
-- Change wall color
-- Resize furniture
-- Rotate furniture
-- Move furniture by dragging
-
-### 🖥️ Interactive Preview
-- Interactive design preview area
-- Visual placement of furniture
-- Furniture selection tools
-
-### 📁 Project Management
-- Save room designs
-- View saved designs in portfolio
-- Manage interior design projects
-
-### 👤 User Interface
-- Modern dashboard UI
-- Navigation bar
-- Responsive layout
-- User-friendly design interface
+- 🧱 Create room layouts using a 2D grid system
+- 🪑 Add, move, and arrange furniture items
+- 🔄 Undo / Redo functionality
+- 💾 Save and load designs using LocalStorage
+- 🎨 Basic color customization
+- 🧊 3D preview of room layouts using Three.js
+- 📦 Predefined furniture library (beds, tables, cabinets, etc.)
 
 ---
 
-# 🛠️ Technologies Used
+## 🧑‍💻 Technologies Used
 
-Frontend:
-
-- React.js
-- JavaScript (ES6)
-- React Router
-- Konva.js (Interactive canvas rendering)
-- HTML5
-- CSS3
-
-Tools:
-
-- Node.js
-- Vite
-- Git
-- GitHub
-- VS Code
+- **Frontend:** React.js
+- **3D Rendering:** Three.js
+- **State Management:** React Context API
+- **Styling:** CSS / Tailwind (if used)
+- **Storage:** Browser LocalStorage
 
 ---
 
-# 📂 Project Structure
-src
-│
-├── components
-│ └── room
-│ └── RoomViewer3D.jsx
-│
-├── pages
-│ ├── Dashboard.jsx
-│ ├── CreateDesign.jsx
-│ ├── Portfolio.jsx
-│ └── Login.jsx
-│
-├── hooks
-│ ├── useAuth.js
-│ └── useDesign.js
-│
-├── App.jsx
-├── main.jsx
-└── index.css
+## 📂 Project Structure
 
+
+src/
+│
+├── components/ # UI components
+├── pages/ # Main pages (Create Design, Dashboard, etc.)
+├── context/ # State management (DesignContext)
+├── data/ # Furniture data
+├── hooks/ # Custom hooks (Undo/Redo)
+├── utils/ # Helper functions
+└── assets/ # Images / 3D models (.glb)
+
+
+---
+
+## ⚙️ Installation & Setup
+
+1. Clone the repository
+
+```bash
+git clone https://github.com/your-username/furniture-designer.git
+
+Navigate to project folder
+
+cd furniture-designer
+
+Install dependencies
+
+npm install
+
+Run the project
+
+npm start
+📸 Screenshots
+
+![alt text](image.png)  ![alt text](image-1.png)![alt text](image-2.png)
+
+⚠️ Limitations
+
+3D models are not fully realistic
+
+Limited lighting and shading in 3D view
+
+No backend/database (uses LocalStorage only)
+
+Limited customization (scaling, colors)
+
+Some models may fail to load if paths are incorrect
+
+🔮 Future Improvements
+
+Add real-time lighting and shadows
+
+Improve 3D model quality and textures
+
+Add backend (Firebase / Node.js)
+
+Enable drag-and-drop UI improvements
+
+Advanced room customization (shapes, materials)
+
+📌 Project Links
+
+🔗 GitHub Repository: https://github.com/kvndu/furniture-room-visualizer-web
